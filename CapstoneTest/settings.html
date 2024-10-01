@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings</title>
+  <link rel="stylesheet" href="homestyle.css">
+</head>
+
+<body>
+  <header>
+    <div class="header-content">
+      <ul class="bullet">
+        <li>
+          <img src="DYCI LOGO.png" alt="Logo" class="logo">
+        </li>
+        <li>
+          <p class="DYCI">Dr. Yanga's College Inc.</p>
+        </li>
+      </ul>
+    </div>
+  </header>
+
+  <nav class="navbar">
+    <ul>
+      <li><a href="courses.html">Courses</a></li>
+      <li><a href="settings.html">Settings</a></li>
+      <li><a href="profile.html">Your Profile</a></li>
+      <li><a href="index_login.html" id="logout-link">Logout</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <h3>Settings</h3>
+    <div class="embossed-platform">
+      <!-- Student Information Form -->
+      <form action="#" method="POST" class="settings-form">
+        <label for="firstName">First Name</label>
+        <input type="text" id="firstName" name="firstName" value="Juan" required><br>
+
+        <label for="middleName">Middle Name</label>
+        <input type="text" id="middleName" name="middleName" placeholder="Optional"><br>
+
+        <label for="lastName">Last Name</label>
+        <input type="text" id="lastName" name="lastName" value="Dela Cruz" required><br>
+
+        <label for="idNumber">ID Number</label>
+        <input type="text" id="idNumber" name="idNumber" value="2021-111111" required><br>
+
+        <label for="primaryEmail">Primary Email</label>
+        <input type="email" id="primaryEmail" name="primaryEmail" value="juandelacruz@gmail.com" required><br>
+
+        <label for="alternateEmail">Alternate Email (Optional)</label>
+        <input type="email" id="alternateEmail" name="alternateEmail" placeholder="Optional"><br>
+
+        <button type="submit">Save Changes</button><br><br><br>
+      </form>
+
+      <!-- Password Reset Button -->
+      <button type="button" id="resetPassword">Reset Password</button><br>
+
+      <!-- Upload Photo Section -->
+      <div class="photo-upload">
+        <label for="photo">Upload Photo</label><br>
+        <input type="file" id="photo" name="photo" accept="image/*"><br><br>
+        <button type="button">Remove Existing Photo</button>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
