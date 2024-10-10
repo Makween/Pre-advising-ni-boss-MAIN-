@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course Selection</title>
+    <!-- Import Firebase as modules -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.19.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/9.19.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-K6Hfx5jrTvnilwha29ceKov0PC2kII0",
+            authDomain: "pre-advisingdb.firebaseapp.com",
+            projectId: "pre-advisingdb",
+            storageBucket: "pre-advisingdb.appspot.com",
+            messagingSenderId: "879799797410",
+            appId: "1:879799797410:web:9a52fbf15ce59b8bda39fb",
+            measurementId: "G-MSMWJ52KBW"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Populate course dropdown from Firestore
+        const courseSelect = document.getElementById('course');
+        async function populateCourses() {
+            const coursesColRef = collection(db, 'courses');
+            const coursesSnapshot = await getDocs(coursesColRef);
+
+            coursesSnapshot.forEach(doc => {
+                const option = document.createElement('option');
+                option.value = doc.id;
+                option.textContent = doc.data().courseName;
+                courseSelect.appendChild(option);
+            });
+        }
+        populateCourses();
+
+        // Fetch data and populate table
+        document.getElementById('fetch-data').addEventListener('click', async () => {
+            const courseId = courseSelect.value;
+            const yearLevel = document.getElementById('year-level').value;
+            const semester = document.getElementById('semester').value;
+
+            const dataTableBody = document.querySelector('#data-table tbody');
+            dataTableBody.innerHTML = ''; // Clear previous data
+
+            try {
+                const courseDocRef = doc(db, 'courses', courseId);
+                const courseSnapshot = await getDoc(courseDocRef);  // Use getDoc
+
+                if (courseSnapshot.exists()) {
+                    const subjects = courseSnapshot.data().subjects;
+
+                    if (subjects[yearLevel] && subjects[yearLevel][semester]) {
+                        subjects[yearLevel][semester].forEach(subject => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${yearLevel}</td>
+                                <td>${semester}</td>
+                                <td>${subject.subjectId}</td>
+                                <td>${subject.subjectName}</td>
+                                <td>${subject.prerequisites.join(', ') || 'None'}</td>
+                                <td>${subject.units}</td>
+                            `;
+                            dataTableBody.appendChild(row);
+                        });
+                    } else {
+                        console.log('No subjects found for the selected year and semester.');
+                    }
+                } else {
+                    console.log('Course not found.');
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        });
+    </script>
+</head>
+<body>
+    <h1>Course and Subject Selection</h1>
+
+    <h2>Select Course Details</h2>
+
+    <label for="course">Course:</label>
+    <select id="course">
+        <!-- Dynamically populated from Firestore -->
+    </select>
+
+    <label for="year-level">Year Level:</label>
+    <select id="year-level">
+        <option value="1">1st Year</option>
+        <option value="2">2nd Year</option>
+        <option value="3">3rd Year</option>
+        <option value="4">4th Year</option>
+    </select>
+
+    <label for="semester">Semester:</label>
+    <select id="semester">
+        <option value="1">1st Semester</option>
+        <option value="2">2nd Semester</option>
+    </select>
+
+    <button id="fetch-data">Fetch Data</button>
+
+    <table id="data-table">
+        <thead>
+            <tr>
+                <th>Year Level</th>
+                <th>Semester</th>
+                <th>Subject ID</th>
+                <th>Subject Name</th>
+                <th>Prerequisites</th>
+                <th>Units</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Data will be populated here -->
+        </tbody>
+    </table>
+</body>
+</html>
