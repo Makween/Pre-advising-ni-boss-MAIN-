@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel</title>
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.19.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, doc, setDoc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/9.19.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-K6Hfx5jrTvnilwha29ceKov0PC2kII0",
+            authDomain: "pre-advisingdb.firebaseapp.com",
+            projectId: "pre-advisingdb",
+            storageBucket: "pre-advisingdb.appspot.com",
+            messagingSenderId: "879799797410",
+            appId: "1:879799797410:web:9a52fbf15ce59b8bda39fb",
+            measurementId: "G-MSMWJ52KBW"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Populate dropdowns with course names from Firestore
+        async function populateCourseDropdowns() {
+            const courseSelectElements = document.querySelectorAll('.course-dropdown');
+            const coursesColRef = collection(db, 'courses');
+            const coursesSnapshot = await getDocs(coursesColRef);
+
+            coursesSnapshot.forEach(doc => {
+                courseSelectElements.forEach(select => {
+                    const option = document.createElement('option');
+                    option.value = doc.id;
+                    option.textContent = doc.data().courseName;
+                    select.appendChild(option);
+                });
+            });
+        }
+
+        // Run this when the page loads to populate course dropdowns
+        populateCourseDropdowns();
+
+        // Add Student Functionality
+        document.getElementById('add-student').addEventListener('click', async () => {
+            const course = document.getElementById('student-course').value;
+            const studentId = document.getElementById('student-id').value;
+            const name = document.getElementById('student-name').value;
+            const yearLevel = document.getElementById('student-year-level').value;
+            const semester = document.getElementById('student-semester').value;
+            const status = document.getElementById('student-status').value;
+
+            try {
+                const studentDocRef = doc(db, `Students/${course}/StudentData`, studentId);
+                await setDoc(studentDocRef, {
+                    name,
+                    studentId,
+                    year: parseInt(yearLevel),
+                    semester: parseInt(semester),
+                    status
+                });
+                alert('Student added successfully!');
+            } catch (error) {
+                console.error('Error adding student:', error);
+            }
+        });
+
+                // Add Enrollment Functionality
+        document.getElementById('add-enrollment').addEventListener('click', async () => {
+            const course = document.getElementById('enrollment-course').value;
+            const studentId = document.getElementById('enrollment-student-id').value;
+            const yearLevel = document.getElementById('enrollment-year-level').value; // This will be used to identify the student's year level
+            const semester = document.getElementById('enrollment-semester').value;
+            const enrolledSubject = document.getElementById('enrolled-subjects').value;
+            const failedSubject = document.getElementById('failed-subjects').value;
+
+            try {
+                const enrollmentDocRef = doc(db, `Enrollments/${course}/EnrollmentData`, studentId);
+                
+                // Fetch existing enrollment data
+                const enrollmentSnapshot = await getDoc(enrollmentDocRef);
+                const existingData = enrollmentSnapshot.exists() ? enrollmentSnapshot.data() : { enrolledSubject: {}, failedSubject: {} };
+
+                // Update the enrolled subjects and failed subjects for the selected semester and year level
+                const updatedEnrolledSubjects = existingData.enrolledSubject[yearLevel] || {};
+                const updatedFailedSubjects = existingData.failedSubject[yearLevel] || {};
+                
+                // Initialize semesters if not present
+                if (!updatedEnrolledSubjects[semester]) {
+                    updatedEnrolledSubjects[semester] = [];
+                }
+                if (!updatedFailedSubjects[semester]) {
+                    updatedFailedSubjects[semester] = [];
+                }
+
+                // Avoid duplicate entries and only add if not selected as 'None'
+                if (enrolledSubject !== "None") {
+                    if (!updatedEnrolledSubjects[semester].includes(enrolledSubject)) {
+                        updatedEnrolledSubjects[semester].push(enrolledSubject);
+                    }
+                }
+
+                if (failedSubject !== "None") {
+                    if (!updatedFailedSubjects[semester].includes(failedSubject)) {
+                        updatedFailedSubjects[semester].push(failedSubject);
+                    }
+                }
+
+                // Set the document (create it if it doesn't exist)
+                await setDoc(enrollmentDocRef, {
+                    enrolledSubject: {
+                        ...existingData.enrolledSubject,
+                        [yearLevel]: updatedEnrolledSubjects
+                    },
+                    failedSubject: {
+                        ...existingData.failedSubject,
+                        [yearLevel]: updatedFailedSubjects
+                    }
+                }, { merge: true });
+
+                alert('Enrollment added successfully!');
+            } catch (error) {
+                console.error('Error adding enrollment:', error);
+            }
+        });
+
+        // Populate enrolled and failed subjects based on selected course, year, and semester
+        document.getElementById('enrollment-course').addEventListener('change', populateSubjectsDropdowns);
+        document.getElementById('enrollment-year-level').addEventListener('change', populateSubjectsDropdowns);
+        document.getElementById('enrollment-semester').addEventListener('change', populateSubjectsDropdowns);
+
+        async function populateSubjectsDropdowns() {
+            const course = document.getElementById('enrollment-course').value;
+            const yearLevel = document.getElementById('enrollment-year-level').value;
+            const semester = document.getElementById('enrollment-semester').value;
+
+            if (course && yearLevel && semester) {
+                const courseDocRef = doc(db, 'courses', course);
+                const courseSnapshot = await getDoc(courseDocRef);
+                
+                if (courseSnapshot.exists()) {
+                    const subjects = courseSnapshot.data().subjects[yearLevel][semester];
+                    const enrolledSubjectsSelect = document.getElementById('enrolled-subjects');
+                    const failedSubjectsSelect = document.getElementById('failed-subjects');
+                    
+                    enrolledSubjectsSelect.innerHTML = ''; // Clear old options
+                    failedSubjectsSelect.innerHTML = ''; // Clear old options
+
+                    // Add "None" option
+                    const noneOption = document.createElement('option');
+                    noneOption.value = "None";
+                    noneOption.textContent = "None";
+                    enrolledSubjectsSelect.appendChild(noneOption);
+                    failedSubjectsSelect.appendChild(noneOption.cloneNode(true));
+
+                    subjects.forEach(subject => {
+                        const option = document.createElement('option');
+                        option.value = subject.subjectId;
+                        option.textContent = `${subject.subjectId} - ${subject.subjectName}`;
+                        enrolledSubjectsSelect.appendChild(option);
+                        failedSubjectsSelect.appendChild(option.cloneNode(true)); // Clone to failed subjects
+                    });
+                }
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Admin Panel</h1>
+
+    <!-- Add Student Section -->
+    <h2>Add Student</h2>
+    <label for="student-course">Course:</label>
+    <select id="student-course" class="course-dropdown"></select>
+
+    <label for="student-id">Student ID:</label>
+    <input type="text" id="student-id">
+
+    <label for="student-name">Student Name:</label>
+    <input type="text" id="student-name">
+
+    <label for="student-year-level">Year Level:</label>
+    <select id="student-year-level">
+        <option value="1">1st Year</option>
+        <option value="2">2nd Year</option>
+        <option value="3">3rd Year</option>
+        <option value="4">4th Year</option>
+    </select>
+
+    <label for="student-semester">Semester:</label>
+    <select id="student-semester">
+        <option value="1">1st Semester</option>
+        <option value="2">2nd Semester</option>
+    </select>
+
+    <label for="student-status">Status:</label>
+    <select id="student-status">
+        <option value="Regular">Regular</option>
+        <option value="Irregular">Irregular</option>
+    </select>
+
+    <button id="add-student">Add Student</button>
+
+    <!-- Add Enrollment Section -->
+    <h2>Add Enrollment</h2>
+    <label for="enrollment-course">Course:</label>
+    <select id="enrollment-course" class="course-dropdown"></select>
+
+    <label for="enrollment-student-id">Student ID:</label>
+    <input type="text" id="enrollment-student-id">
+
+    <label for="enrollment-year-level">Year Level:</label>
+    <select id="enrollment-year-level">
+        <option value="1">1st Year</option>
+        <option value="2">2nd Year</option>
+        <option value="3">3rd Year</option>
+        <option value="4">4th Year</option>
+    </select>
+
+    <label for="enrollment-semester">Semester:</label>
+    <select id="enrollment-semester">
+        <option value="1">1st Semester</option>
+        <option value="2">2nd Semester</option>
+    </select>
+
+    <label for="enrolled-subjects">Enrolled Subjects:</label>
+    <select id="enrolled-subjects"></select>
+
+    <label for="failed-subjects">Failed Subjects:</label>
+    <select id="failed-subjects"></select>
+
+    <button id="add-enrollment">Add Enrollment</button>
+</body>
+</html>

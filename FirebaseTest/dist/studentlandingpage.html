@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Landing Page</title>
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.19.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/9.19.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-K6Hfx5jrTvnilwha29ceKov0PC2kII0",
+            authDomain: "pre-advisingdb.firebaseapp.com",
+            projectId: "pre-advisingdb",
+            storageBucket: "pre-advisingdb.appspot.com",
+            messagingSenderId: "879799797410",
+            appId: "1:879799797410:web:9a52fbf15ce59b8bda39fb",
+            measurementId: "G-MSMWJ52KBW"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Fetch student data on page load
+        window.onload = async () => {
+            const studentId = localStorage.getItem('studentId');
+            const course = localStorage.getItem('course');
+
+            if (studentId && course) {
+                await fetchStudentData(studentId, course);
+                await fetchEnrolledSubjects(course, studentId); // Fetch subjects for the student
+                await recommendSubjects(course, studentId); // Fetch and recommend subjects
+            } else {
+                alert('No student ID found in local storage.');
+                window.location.href = 'studentlogin.html'; // Redirect to login if no ID
+            }
+        };
+
+        async function fetchStudentData(studentId, course) {
+            try {
+                const docRef = doc(db, `Students/${course}/StudentData`, studentId);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const studentData = docSnap.data();
+                    // Display student information
+                    document.getElementById('student-info').innerHTML = `
+                        <h2>Welcome, ${studentData.name}</h2>
+                        <p>Course: ${course}</p>
+                        <p>Year Level: ${studentData.year}</p>
+                        <p>Semester: ${studentData.semester}</p>
+                    `;
+                } else {
+                    console.error('No such student document!');
+                }
+            } catch (error) {
+                console.error('Error fetching student data:', error);
+            }
+        }
+
+        async function fetchEnrolledSubjects(course, studentId) {
+            const enrolledSubjectsDiv = document.getElementById('enrolled-subjects');
+            enrolledSubjectsDiv.innerHTML = '<h3>Enrolled Subjects:</h3>';
+
+            // Create table
+            const table = document.createElement('table');
+            table.innerHTML = `
+                <tr>
+                    <th>Year</th>
+                    <th>Semester</th>
+                    <th>Subject Code</th>
+                    <th>Subject Name</th>
+                    <th>Units</th>
+                </tr>
+            `;
+
+            // Minimal styling for the table
+            table.style.width = '100%';
+            table.style.borderCollapse = 'collapse';
+            table.style.marginBottom = '20px';
+
+            const ths = table.getElementsByTagName('th');
+            for (let th of ths) {
+                th.style.backgroundColor = '#f2f2f2';
+                th.style.padding = '10px';
+                th.style.textAlign = 'left';
+                th.style.borderBottom = '2px solid #ddd';
+            }
+
+            const tds = table.getElementsByTagName('td');
+            for (let td of tds) {
+                td.style.padding = '10px';
+                td.style.borderBottom = '1px solid #ddd';
+            }
+
+            try {
+                const subjectDocRef = doc(db, `Enrollments/${course}/EnrollmentData`, studentId);
+                const docSnap = await getDoc(subjectDocRef);
+
+                if (docSnap.exists()) {
+                    const subjectData = docSnap.data();
+                    const enrolledSubject = subjectData.enrolledSubject;
+
+                    let hasSubjects = false;
+
+                    // Fetch course data to get subject names and units
+                    const coursesRef = doc(db, `courses/${course}`);
+                    const coursesSnap = await getDoc(coursesRef);
+                    const coursesData = coursesSnap.data();
+                    const subjectsData = coursesData.subjects;
+
+                    // Create a mapping of subject codes to subject names and units
+                    const subjectMap = {};
+                    for (const year in subjectsData) {
+                        for (const semester in subjectsData[year]) {
+                            const subjectsArray = subjectsData[year][semester];
+                            subjectsArray.forEach(subject => {
+                                subjectMap[subject.subjectId] = {
+                                    name: subject.subjectName,
+                                    units: subject.units
+                                };
+                            });
+                        }
+                    }
+
+                    // Iterate through years in enrolledSubject
+                    for (const year in enrolledSubject) {
+                        // Check if there are subjects for the year
+                        if (enrolledSubject[year]) {
+                            // Iterate through semesters in the year
+                            for (const semester in enrolledSubject[year]) {
+                                const subjectsArray = enrolledSubject[year][semester];
+
+                                // Check if subjectsArray is an array and has subjects
+                                if (Array.isArray(subjectsArray)) {
+                                    for (const subjectCode of subjectsArray) {
+                                        const subjectInfo = subjectMap[subjectCode] || { name: 'Unknown Subject', units: 'N/A' }; // Get subject info or default
+                                        // Create a new row for each subject
+                                        const row = document.createElement('tr');
+                                        row.innerHTML = `
+                                            <td>${year}</td>
+                                            <td>${semester}</td>
+                                            <td>${subjectCode}</td>
+                                            <td>${subjectInfo.name}</td>
+                                            <td>${subjectInfo.units}</td>
+                                        `;
+                                        table.appendChild(row);
+                                        hasSubjects = true; // Set to true if at least one subject is found
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (!hasSubjects) {
+                        enrolledSubjectsDiv.innerHTML += `<p>No subjects found for this student.</p>`;
+                    } else {
+                        enrolledSubjectsDiv.appendChild(table); // Append the table to the div
+                    }
+                } else {
+                    enrolledSubjectsDiv.innerHTML += `<p>No subjects found for this student.</p>`;
+                }
+            } catch (error) {
+                console.error('Error fetching enrolled subjects:', error);
+            }
+        }
+
+        async function recommendSubjects(course, studentId) {
+            const recommendedSubjectsDiv = document.getElementById('recommended-subjects');
+            recommendedSubjectsDiv.innerHTML = '<h3>Recommended Subjects:</h3>';
+
+            // Create table
+            const recommendedTable = document.createElement('table');
+            recommendedTable.innerHTML = `
+                <tr>
+                    <th>Year</th>
+                    <th>Semester</th>
+                    <th>Subject Code</th>
+                    <th>Subject Name</th>
+                    <th>Units</th>
+                </tr>
+            `;
+
+            // Minimal styling for the table
+            recommendedTable.style.width = '100%';
+            recommendedTable.style.borderCollapse = 'collapse';
+            recommendedTable.style.marginBottom = '20px';
+
+            const ths = recommendedTable.getElementsByTagName('th');
+            for (let th of ths) {
+                th.style.backgroundColor = '#f2f2f2';
+                th.style.padding = '10px';
+                th.style.textAlign = 'left';
+                th.style.borderBottom = '2px solid #ddd';
+            }
+
+            try {
+                const studentDocRef = doc(db, `Students/${course}/StudentData`, studentId);
+                const studentSnap = await getDoc(studentDocRef);
+
+                if (studentSnap.exists()) {
+                    const studentData = studentSnap.data();
+                    const semester = studentData.semester;
+                    const year = studentData.year;
+
+                    const failedSubjects = [];
+
+                    // Fetch failed subjects
+                    const enrollmentDocRef = doc(db, `Enrollments/${course}/EnrollmentData`, studentId);
+                    const enrollmentSnap = await getDoc(enrollmentDocRef);
+
+                    if (enrollmentSnap.exists()) {
+                        const enrollmentData = enrollmentSnap.data();
+                        if (enrollmentData.failedSubject) {
+                            for (const year in enrollmentData.failedSubject) {
+                                for (const sem in enrollmentData.failedSubject[year]) {
+                                    if (Array.isArray(enrollmentData.failedSubject[year][sem])) {
+                                        failedSubjects.push(...enrollmentData.failedSubject[year][sem]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    const recommendedSubjects = [];
+                    const subjectsRef = doc(db, `courses/${course}`);
+                    const subjectsSnap = await getDoc(subjectsRef);
+                    const subjectsData = subjectsSnap.data().subjects;
+
+                    // Logic for recommendations based on failed subjects
+                    if (semester === 2) {
+                        // Check for retake subjects
+                        failedSubjects.forEach(failedSubject => {
+                            const subject = subjectsData[year][1].find(sub => sub.subjectId === failedSubject); // Change [0] to [1] for 1st semester
+                            if (subject) {
+                                recommendedSubjects.push({
+                                    ...subject,
+                                    subjectName: `${subject.subjectName} (Retake)`, // Mark as retake
+                                });
+                            }
+                        });
+
+                        // Add subjects from the 2nd semester
+                        const secondSemesterSubjects = subjectsData[year][2]; // Assuming semester 2 subjects are stored this way
+                        secondSemesterSubjects.forEach(subject => {
+                            const hasPrerequisite = subject.prerequisites.length > 0; // Check if it has prerequisites
+                            if (!hasPrerequisite || (failedSubjects.includes(subject.prerequisites[0]))) {
+                                recommendedSubjects.push(subject);
+                            }
+                        });
+                    }
+
+                    // Ensure that retakes appear in the recommended table
+                    recommendedSubjects.forEach(subject => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${year}</td>
+                            <td>${semester}</td>
+                            <td>${subject.subjectId}</td>
+                            <td>${subject.subjectName}</td>
+                            <td>${subject.units}</td>
+                        `;
+                        recommendedTable.appendChild(row);
+                    });
+
+                    // Check if there are any recommended subjects
+                    if (recommendedSubjects.length === 0) {
+                        recommendedSubjectsDiv.innerHTML += `<p>No recommended subjects found for this student.</p>`;
+                    }
+
+                    recommendedSubjectsDiv.appendChild(recommendedTable);
+                } else {
+                    recommendedSubjectsDiv.innerHTML += `<p>No student data found.</p>`;
+                }
+            } catch (error) {
+                console.error('Error recommending subjects:', error);
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        #gif-placeholder {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 200px; /* Increased width */
+            height: auto; /* Maintain aspect ratio */
+        }
+        h2, h3 {
+            color: #333;
+        }
+        p {
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <img id="gif-placeholder" src="https://media1.tenor.com/m/yiY8YvQTDM8AAAAC/cat-maxwell.gif" alt="GIF Placeholder">
+    <div id="student-info"></div>
+    <div id="enrolled-subjects"></div>
+    <div id="recommended-subjects"></div>
+</body>
+</html>

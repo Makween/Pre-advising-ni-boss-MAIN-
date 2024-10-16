@@ -51,11 +51,12 @@
 
             try {
                 const courseDocRef = doc(db, 'courses', courseId);
-                const courseSnapshot = await getDoc(courseDocRef);  // Use getDoc
+                const courseSnapshot = await getDoc(courseDocRef);
 
                 if (courseSnapshot.exists()) {
                     const subjects = courseSnapshot.data().subjects;
 
+                    // Check if the subjects object has data for the selected year and semester
                     if (subjects[yearLevel] && subjects[yearLevel][semester]) {
                         subjects[yearLevel][semester].forEach(subject => {
                             const row = document.createElement('tr');
@@ -71,6 +72,9 @@
                         });
                     } else {
                         console.log('No subjects found for the selected year and semester.');
+                        const noDataRow = document.createElement('tr');
+                        noDataRow.innerHTML = `<td colspan="6">No subjects found for Year ${yearLevel}, Semester ${semester}.</td>`;
+                        dataTableBody.appendChild(noDataRow);
                     }
                 } else {
                     console.log('Course not found.');
@@ -79,6 +83,35 @@
                 console.error('Error fetching data:', error);
             }
         });
+
+        // Function to check the entire database structure
+        async function fetchAllCourses() {
+            const coursesColRef = collection(db, 'courses');
+            const coursesSnapshot = await getDocs(coursesColRef);
+            console.log('Courses Structure:');
+
+            for (const courseDoc of coursesSnapshot.docs) {
+                const courseData = courseDoc.data();
+                console.log(`Course ID: ${courseDoc.id}`, courseData);
+
+                // If your subjects are nested under subjects in the course document
+                if (courseData.subjects) {
+                    console.log(`Subjects for ${courseDoc.id}:`);
+                    for (const yearLevel in courseData.subjects) {
+                        for (const semester in courseData.subjects[yearLevel]) {
+                            const subjects = courseData.subjects[yearLevel][semester];
+                            subjects.forEach(subject => {
+                                console.log(`  Year Level: ${yearLevel}, Semester: ${semester}, Subject:`, subject);
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // Call the function to log the structure when the page loads
+        window.onload = fetchAllCourses;
+
     </script>
 </head>
 <body>

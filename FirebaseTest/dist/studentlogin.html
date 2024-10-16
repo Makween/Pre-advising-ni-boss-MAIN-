@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Login</title>
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.19.1/firebase-app.js';
+        import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/9.19.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-K6Hfx5jrTvnilwha29ceKov0PC2kII0",
+            authDomain: "pre-advisingdb.firebaseapp.com",
+            projectId: "pre-advisingdb",
+            storageBucket: "pre-advisingdb.appspot.com",
+            messagingSenderId: "879799797410",
+            appId: "1:879799797410:web:9a52fbf15ce59b8bda39fb",
+            measurementId: "G-MSMWJ52KBW"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        document.getElementById('login-button').addEventListener('click', async () => {
+            const studentId = document.getElementById('student-id').value;
+            const course = document.getElementById('course').value;
+
+            try {
+                const docRef = doc(db, `Students/${course}/StudentData`, studentId);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    // Student exists, store student ID and course in local storage
+                    localStorage.setItem('studentId', studentId);
+                    localStorage.setItem('course', course);
+
+                    // Redirect to landing page
+                    window.location.href = 'studentlandingpage.html';
+                } else {
+                    alert('Student not found. Please check your ID and course.');
+                }
+            } catch (error) {
+                console.error('Error checking student:', error);
+            }
+        });
+    </script>
+</head>
+<body>
+    <h1>Student Login</h1>
+    <label for="course">Course:</label>
+    <select id="course">
+        <option value="course_bsit">BSIT</option>
+        <!-- Add more courses as needed -->
+    </select>
+    <br>
+
+    <label for="student-id">Student ID:</label>
+    <input type="text" id="student-id" required>
+    <br>
+
+    <button id="login-button">Login</button>
+</body>
+</html>

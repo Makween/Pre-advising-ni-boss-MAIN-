@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Landing Page</title>
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.19.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/9.19.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-K6Hfx5jrTvnilwha29ceKov0PC2kII0",
+            authDomain: "pre-advisingdb.firebaseapp.com",
+            projectId: "pre-advisingdb",
+            storageBucket: "pre-advisingdb.appspot.com",
+            messagingSenderId: "879799797410",
+            appId: "1:879799797410:web:9a52fbf15ce59b8bda39fb",
+            measurementId: "G-MSMWJ52KBW"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Fetch student data on page load
+        window.onload = async () => {
+            const studentId = localStorage.getItem('studentId');
+            const course = localStorage.getItem('course');
+
+            if (studentId && course) {
+                await fetchStudentData(studentId, course);
+                await fetchEnrolledSubjects(course, studentId); // Fetch subjects for the student
+                await recommendSubjects(course, studentId); // Fetch and recommend subjects
+            } else {
+                alert('No student ID found in local storage.');
+                window.location.href = 'studentlogin.html'; // Redirect to login if no ID
+            }
+        };
+
+        async function fetchStudentData(studentId, course) {
+            try {
+                const docRef = doc(db, `Students/${course}/StudentData`, studentId);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const studentData = docSnap.data();
+                    // Display student information (example)
+                    document.getElementById('student-info').innerHTML = `
+                        <h2>Welcome, ${studentData.name}</h2>
+                        <p>Course: ${course}</p>
+                        <p>Year Level: ${studentData.year}</p>
+                        <p>Semester: ${studentData.semester}</p>
+                    `;
+                } else {
+                    console.error('No such student document!');
+                }
+            } catch (error) {
+                console.error('Error fetching student data:', error);
+            }
+        }
+
+        async function fetchEnrolledSubjects(course, studentId) {
+            const enrolledSubjectsDiv = document.getElementById('enrolled-subjects');
+            enrolledSubjectsDiv.innerHTML = '<h3>Enrolled Subjects:</h3>';
+
+            try {
+                const subjectDocRef = doc(db, `Enrollments/${course}/EnrollmentData`, studentId);
+                const docSnap = await getDoc(subjectDocRef);
+
+                if (docSnap.exists()) {
+                    const subjectData = docSnap.data();
+                    const enrolledSubject = subjectData.enrolledSubject;
+
+                    let hasSubjects = false;
+
+                    // Iterate through years in enrolledSubject
+                    for (const year in enrolledSubject) {
+                        // Check if there are subjects for the year
+                        if (enrolledSubject[year]) {
+                            // Iterate through semesters in the year
+                            for (const semester in enrolledSubject[year]) {
+                                const subjectsArray = enrolledSubject[year][semester];
+
+                                // Check if subjectsArray is an array and has subjects
+                                if (Array.isArray(subjectsArray)) {
+                                    for (const subjectName of subjectsArray) {
+                                        enrolledSubjectsDiv.innerHTML += `
+                                            <p>${subjectName} (Year ${year}, Semester ${semester})</p>
+                                        `;
+                                        hasSubjects = true; // Set to true if at least one subject is found
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (!hasSubjects) {
+                        enrolledSubjectsDiv.innerHTML += `<p>No subjects found for this student.</p>`;
+                    }
+                } else {
+                    enrolledSubjectsDiv.innerHTML += `<p>No subjects found for this student.</p>`;
+                }
+            } catch (error) {
+                console.error('Error fetching enrolled subjects:', error);
+            }
+        }
+
+        async function recommendSubjects(course, studentId) {
+    const recommendedSubjectsDiv = document.getElementById('recommended-subjects');
+    recommendedSubjectsDiv.innerHTML = '<h3>Recommended Subjects:</h3>';
+
+    try {
+        const studentDocRef = doc(db, `Students/${course}/StudentData`, studentId);
+        const studentSnap = await getDoc(studentDocRef);
+
+        if (studentSnap.exists()) {
+            const studentData = studentSnap.data();
+            const semester = studentData.semester;
+            const year = studentData.year;
+
+            const subjectsRef = doc(db, `courses/${course}`);
+            const subjectsSnap = await getDoc(subjectsRef);
+
+            const enrolledSubjects = [];
+            const failedSubjects = [];
+
+            // Fetch enrolled and failed subjects
+            const enrollmentDocRef = doc(db, `Enrollments/${course}/EnrollmentData`, studentId);
+            const enrollmentSnap = await getDoc(enrollmentDocRef);
+
+            if (enrollmentSnap.exists()) {
+                const enrollmentData = enrollmentSnap.data();
+
+                // Extract enrolled subjects
+                if (enrollmentData.enrolledSubject) {
+                    enrolledSubjects.push(...Object.values(enrollmentData.enrolledSubject).flat());
+                }
+
+                // Extract failed subjects
+                if (enrollmentData.failedSubject) {
+                    for (const year in enrollmentData.failedSubject) {
+                        for (const sem in enrollmentData.failedSubject[year]) {
+                            if (Array.isArray(enrollmentData.failedSubject[year][sem])) {
+                                failedSubjects.push(...enrollmentData.failedSubject[year][sem]);
+                            } else {
+                                console.warn(`Failed subjects for year ${year}, semester ${sem} is not an array:`, enrollmentData.failedSubject[year][sem]);
+                            }
+                        }
+                    }
+                }
+            }
+
+            const recommendedSubjects = [];
+
+            // Check if the student is in the 2nd semester
+            if (semester === 2) {
+                const subjectsData = subjectsSnap.data().subjects;
+
+                // Access the 1st-year 2nd-semester subjects
+                const secondSemesterSubjects = subjectsData[1][2] || []; // Assuming 1 is for 1st year and 2 for 2nd semester
+
+                if (!Array.isArray(secondSemesterSubjects)) {
+                    console.error("Second semester subjects are not in the expected format:", secondSemesterSubjects);
+                    return;
+                }
+
+                // Loop through second semester subjects to check prerequisites and failed subjects
+                secondSemesterSubjects.forEach(subject => {
+                    const prerequisites = subject.prerequisites || [];
+
+                    // Check if the student has failed any prerequisites
+                    const hasFailedPrerequisites = prerequisites.some(prereq => 
+                        failedSubjects.includes(prereq)
+                    );
+
+                    console.log(`Checking subject: ${subject.subjectName}`);
+                    console.log(`Prerequisites: ${JSON.stringify(prerequisites)}`);
+                    console.log(`Failed Subjects: ${JSON.stringify(failedSubjects)}`);
+                    console.log(`Has failed prerequisites: ${hasFailedPrerequisites}`);
+
+                    // Only recommend active subjects that are not enrolled or failed and have met prerequisites
+                    if (subject.status === 'active' && 
+                        !enrolledSubjects.includes(subject.subjectId) && 
+                        !failedSubjects.includes(subject.subjectId) &&
+                        !hasFailedPrerequisites) {
+                        recommendedSubjects.push(subject.subjectName);
+                    } else {
+                        console.log(`Not recommending ${subject.subjectName}: 
+                            Active: ${subject.status === 'active'}, 
+                            Enrolled: ${enrolledSubjects.includes(subject.subjectId)}, 
+                            Failed: ${failedSubjects.includes(subject.subjectId)}, 
+                            Has failed prerequisites: ${hasFailedPrerequisites}`);
+                    }
+                });
+            }
+
+            // Check for failed subjects to recommend them for retake
+            failedSubjects.forEach(failedSubject => {
+                recommendedSubjects.push(failedSubject + " (Retake)");
+            });
+
+            // Display recommended subjects
+            if (recommendedSubjects.length > 0) {
+                recommendedSubjects.forEach(subjectName => {
+                    recommendedSubjectsDiv.innerHTML += `<p>${subjectName}</p>`;
+                });
+            } else {
+                recommendedSubjectsDiv.innerHTML += `<p>No recommended subjects found for this student.</p>`;
+            }
+        } else {
+            console.error('No such student document!');
+        }
+    } catch (error) {
+        console.error('Error recommending subjects:', error);
+    }
+}
+
+    </script>
+</head>
+<body>
+    <h1>Student Landing Page</h1>
+    <div id="student-info"></div>
+    <div id="enrolled-subjects"></div> <!-- Existing div for enrolled subjects -->
+    <div id="recommended-subjects"></div> <!-- New div for recommended subjects -->
+</body>
+</html>

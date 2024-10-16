@@ -1,0 +1,13 @@
+const db = getFirestore();
+const courseId = 'course_bsit';
+const subjectId = 'DYBITDms113'; // Change this to any subject ID you want to test
+const subjectRef = doc(db, `courses/${courseId}/subjects/${subjectId}`);
+getDoc(subjectRef).then((docSnap) => {
+    if (docSnap.exists()) {
+        console.log("Subject data:", docSnap.data());
+    } else {
+        console.log(`No details found for subject ID: ${subjectId}`);
+    }
+}).catch((error) => {
+    console.error('Error fetching subject:', error);
+});
