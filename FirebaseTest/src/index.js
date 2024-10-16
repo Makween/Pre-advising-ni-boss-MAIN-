@@ -24,6 +24,50 @@ const db = getFirestore();
 // Collection reference
 const coursesColRef = collection(db, 'courses');
 
+// Fetching courses and subjects based on selected course, year, and semester
+document.getElementById('fetch-data').addEventListener('click', async () => {
+    const courseId = document.getElementById('course').value;
+    const yearLevel = document.getElementById('year-level').value;
+    const semester = document.getElementById('semester').value;
+
+    const dataTableBody = document.querySelector('#data-table tbody');
+    dataTableBody.innerHTML = ''; // Clear previous data
+
+    try {
+        // Fetch all courses
+        const coursesSnapshot = await getDocs(coursesColRef);
+        const courseData = coursesSnapshot.docs.find(doc => doc.id === courseId);
+
+        if (courseData) {
+            const subjects = courseData.data().subjects;
+
+            if (subjects[yearLevel] && subjects[yearLevel][semester]) {
+                subjects[yearLevel][semester].forEach(subject => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${yearLevel}</td>
+                        <td>${semester}</td>
+                        <td>${subject.subjectId}</td>
+                        <td>${subject.subjectName}</td>
+                        <td>${subject.prerequisites.join(', ')}</td>
+                        <td>${subject.units}</td>
+                        <td>
+                            <button class="delete-btn" data-subject-id="${subject.subjectId}">Delete</button>
+                        </td>
+                    `;
+                    dataTableBody.appendChild(row);
+                });
+            } else {
+                console.log('No subjects found for the selected year and semester.');
+            }
+        } else {
+            console.log('Course not found.');
+        }
+    } catch (error) {
+        console.error('Error fetching data:', error);
+    }
+});
+
 // Adding courses and subjects
 const addCourseForm = document.querySelector('.add-course');
 addCourseForm.addEventListener('submit', async (e) => {
