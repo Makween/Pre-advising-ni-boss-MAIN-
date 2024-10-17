@@ -6,7 +6,7 @@
     <title>Admin Panel</title>
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.19.1/firebase-app.js';
-        import { getFirestore, collection, getDocs, doc, setDoc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/9.19.1/firebase-firestore.js';
+        import { getFirestore, collection, getDocs, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/9.19.1/firebase-firestore.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -66,11 +66,11 @@
             }
         });
 
-                // Add Enrollment Functionality
+        // Add Enrollment Functionality
         document.getElementById('add-enrollment').addEventListener('click', async () => {
             const course = document.getElementById('enrollment-course').value;
             const studentId = document.getElementById('enrollment-student-id').value;
-            const yearLevel = document.getElementById('enrollment-year-level').value; // This will be used to identify the student's year level
+            const yearLevel = document.getElementById('enrollment-year-level').value; 
             const semester = document.getElementById('enrollment-semester').value;
             const enrolledSubject = document.getElementById('enrolled-subjects').value;
             const failedSubject = document.getElementById('failed-subjects').value;
@@ -125,7 +125,25 @@
             }
         });
 
-        // Populate enrolled and failed subjects based on selected course, year, and semester
+        // Add Max Units Functionality
+        document.getElementById('set-max-units').addEventListener('click', async () => {
+            const course = document.getElementById('max-units-course').value;
+            const yearLevel = document.getElementById('max-units-year-level').value;
+            const semester = document.getElementById('max-units-semester').value;
+            const maxUnits = document.getElementById('max-units-value').value;
+
+            try {
+                const courseDocRef = doc(db, `courses/${course}/subjects/${yearLevel}/${semester}`);
+                await setDoc(courseDocRef, {
+                    maxUnits: parseInt(maxUnits) // Store max units for the combination
+                }, { merge: true }); // Use merge to prevent overwriting other data
+                alert('Maximum units set successfully!');
+            } catch (error) {
+                console.error('Error setting maximum units:', error);
+            }
+        });
+
+        // Populate subjects dropdowns based on selected course, year, and semester
         document.getElementById('enrollment-course').addEventListener('change', populateSubjectsDropdowns);
         document.getElementById('enrollment-year-level').addEventListener('change', populateSubjectsDropdowns);
         document.getElementById('enrollment-semester').addEventListener('change', populateSubjectsDropdowns);
@@ -231,5 +249,29 @@
     <select id="failed-subjects"></select>
 
     <button id="add-enrollment">Add Enrollment</button>
+
+    <!-- Set Maximum Units Section -->
+    <h2>Set Maximum Units</h2>
+    <label for="max-units-course">Course:</label>
+    <select id="max-units-course" class="course-dropdown"></select>
+
+    <label for="max-units-year-level">Year Level:</label>
+    <select id="max-units-year-level">
+        <option value="1">1st Year</option>
+        <option value="2">2nd Year</option>
+        <option value="3">3rd Year</option>
+        <option value="4">4th Year</option>
+    </select>
+
+    <label for="max-units-semester">Semester:</label>
+    <select id="max-units-semester">
+        <option value="1">1st Semester</option>
+        <option value="2">2nd Semester</option>
+    </select>
+
+    <label for="max-units-value">Max Units:</label>
+    <input type="number" id="max-units-value" min="1">
+
+    <button id="set-max-units">Set Max Units</button>
 </body>
 </html>

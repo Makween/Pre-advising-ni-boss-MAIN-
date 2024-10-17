@@ -1,0 +1,119 @@
+async function recommendIrregularSubjects(course, studentId) {
+            const recommendedSubjectsDiv = document.getElementById('recommended-subjects');
+            recommendedSubjectsDiv.innerHTML = '<h3>Recommended Subjects for Irregular Students:</h3>';
+
+            // Create table
+            const recommendedTable = document.createElement('table');
+            recommendedTable.innerHTML = `
+                <tr>
+                    <th>Year</th>
+                    <th>Semester</th>
+                    <th>Subject Code</th>
+                    <th>Subject Name</th>
+                    <th>Units</th>
+                </tr>
+            `;
+
+            try {
+                const studentDocRef = doc(db, `Students/${course}/StudentData`, studentId);
+                const studentSnap = await getDoc(studentDocRef);
+
+                if (studentSnap.exists()) {
+                    const studentData = studentSnap.data();
+                    const semester = studentData.semester;
+                    const year = studentData.year;
+
+                    const failedSubjects = [];
+
+                    // Fetch failed subjects
+                    const enrollmentDocRef = doc(db, `Enrollments/${course}/EnrollmentData`, studentId);
+                    const enrollmentSnap = await getDoc(enrollmentDocRef);
+
+                    if (enrollmentSnap.exists()) {
+                        const enrollmentData = enrollmentSnap.data();
+                        if (enrollmentData.failedSubject) {
+                            for (const year in enrollmentData.failedSubject) {
+                                for (const sem in enrollmentData.failedSubject[year]) {
+                                    if (Array.isArray(enrollmentData.failedSubject[year][sem])) {
+                                        failedSubjects.push(...enrollmentData.failedSubject[year][sem]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    const recommendedSubjects = [];
+                    const subjectsRef = doc(db, `courses/${course}`);
+                    const subjectsSnap = await getDoc(subjectsRef);
+                    const subjectsData = subjectsSnap.data().subjects;
+
+                    // Recommendation logic for irregular students
+                    if (semester === 1) {
+                        // Handle recommendations for 1st semester
+                        failedSubjects.forEach(failedSubject => {
+                            const subject = subjectsData[year - 1]?.[2]?.find(sub => sub.subjectId === failedSubject); // Retake failed subjects from 2nd sem of previous year
+                            if (subject) {
+                                recommendedSubjects.push({
+                                    ...subject,
+                                    year: year - 1,
+                                    semester: 2
+                                });
+                            }
+                        });
+
+                        // Add 1st semester subjects of the current year
+                        subjectsData[year]?.[1]?.forEach(subject => {
+                            if (!failedSubjects.includes(subject.subjectId)) {
+                                recommendedSubjects.push({
+                                    ...subject,
+                                    year,
+                                    semester: 1
+                                });
+                            }
+                        });
+                    } else if (semester === 2) {
+                        // Handle recommendations for 2nd semester
+                        failedSubjects.forEach(failedSubject => {
+                            const subject = subjectsData[year]?.[1]?.find(sub => sub.subjectId === failedSubject); // Retake failed subjects from 1st sem of current year
+                            if (subject) {
+                                recommendedSubjects.push({
+                                    ...subject,
+                                    year,
+                                    semester: 1
+                                });
+                            }
+                        });
+
+                        // Add 2nd semester subjects of the current year
+                        subjectsData[year]?.[2]?.forEach(subject => {
+                            if (!failedSubjects.includes(subject.subjectId)) {
+                                recommendedSubjects.push({
+                                    ...subject,
+                                    year,
+                                    semester: 2
+                                });
+                            }
+                        });
+                    }
+
+                    if (recommendedSubjects.length > 0) {
+                        recommendedSubjects.forEach(subject => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${subject.year}</td>
+                                <td>${subject.semester}</td>
+                                <td>${subject.subjectId}</td>
+                                <td>${subject.subjectName}</td>
+                                <td>${subject.units}</td>
+                            `;
+                            recommendedTable.appendChild(row);
+                        });
+                        recommendedSubjectsDiv.appendChild(recommendedTable);
+                    } else {
+                        recommendedSubjectsDiv.innerHTML += `<p>No subjects available for recommendation.</p>`;
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching recommended subjects for irregular students:', error);
+            }
+        }
