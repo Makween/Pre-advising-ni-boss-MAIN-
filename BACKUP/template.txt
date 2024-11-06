@@ -1,0 +1,9 @@
+1st Year, 1st Sem: Student fails Subject A.
+1st Year, 2nd Sem: Student misses Subject B (dependent on Subject A).
+2nd Year, 1st Sem: Student marks Subject A as passed. therefore it will recommend subject B and will miss again subject C (dependent on subject B) 
+2nd Year, 2nd Sem: Student marks Subject B as passed. therefore it will recommend subject C 
+
+
+Year	Semester	Subject Code	Subject Name	Units	Status	Indicator
+1	1	DYBITDms113	Discrete Mathematical Structures 1	3	Failed	Retake 
+1	1	DYBITDms113	Discrete Mathematical Structures 1	3	Passed  Completed	

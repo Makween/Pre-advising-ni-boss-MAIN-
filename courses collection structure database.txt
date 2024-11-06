@@ -1,0 +1,15 @@
+/courses/courseId
+    courseName: "courseName"
+    subjects: 
+        1: // Year
+            1: // Semester
+                - prerequisites: ["ss2"]
+                  status: "active"
+                  subjectId: "tesss"
+                  subjectName: "Test"
+                  units: 3
+    years:
+        1:
+            semesters:
+                1:
+                    maxUnits: 24 // Here for the semester

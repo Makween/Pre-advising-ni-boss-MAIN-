@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Student Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f9f9f9;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        form {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #fff;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+        select, input[type="text"], button {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            margin-top: 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .status-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+        .status-btn:hover {
+            background-color: #218838;
+        }
+        .enrolled {
+            background-color: #d4f5ff;
+            color: #007bff;
+        }
+        .failed {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .passed {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .section-header {
+            margin-top: 40px;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .student-info, .subject-table {
+            background-color: #fff;
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .student-info table {
+            width: 100%;
+            border: none;
+        }
+        .student-info th, .student-info td {
+            padding: 8px;
+            border: none;
+        }
+    </style>
+    <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-firestore.js"></script>
+    <script>
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-K6Hfx5jrTvnilwha29ceKov0PC2kII0",
+            authDomain: "pre-advisingdb.firebaseapp.com",
+            projectId: "pre-advisingdb",
+            storageBucket: "pre-advisingdb.appspot.com",
+            messagingSenderId: "879799797410",
+            appId: "1:879799797410:web:9a52fbf15ce59b8bda39fb",
+            measurementId: "G-MSMWJ52KBW"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Load courses from Firestore
+        function loadCourses() {
+            db.collection('courses').get().then(snapshot => {
+                const courseDropdown = document.getElementById('student-management-course');
+                courseDropdown.innerHTML = '<option value="" disabled selected>Select a course</option>';
+                snapshot.forEach(doc => {
+                    const option = document.createElement('option');
+                    option.text = doc.data().courseName;
+                    option.value = doc.id;
+                    courseDropdown.add(option);
+                });
+            }).catch(error => console.error("Error loading courses: ", error));
+        }
+        async function fetchStudentData() {
+    const courseId = document.getElementById('student-management-course').value;
+    const studentId = document.getElementById('student-management-student-id').value;
+
+    if (!courseId || !studentId) {
+        alert('Please select a course and enter a student ID.');
+        return;
+    }
+
+    // Clear previous data
+    document.getElementById('student-info').innerHTML = '<h3>Loading student info...</h3>';
+    document.getElementById('enrolled-subjects').innerHTML = '<tr><td colspan="7">Loading data...</td></tr>';
+    document.getElementById('failed-subjects').innerHTML = '<tr><td colspan="7">Loading data...</td></tr>';
+    document.getElementById('passed-subjects').innerHTML = '<tr><td colspan="7">Loading data...</td></tr>';
+
+    try {
+        // Fetch student basic info (name and status)
+        const studentRef = db.collection('Students').doc(courseId).collection('StudentData').doc(studentId);
+        const studentSnap = await studentRef.get();
+
+        if (studentSnap.exists) {
+            const studentData = studentSnap.data();
+            const studentName = studentData.name || 'N/A';
+            const studentStatus = studentData.status || 'N/A';
+
+            // Update student info table
+            const studentInfo = `
+                <h3>Student Information</h3>
+                <table>
+                    <tr><th>Name</th><td>${studentName}</td></tr>
+                    <tr><th>ID</th><td>${studentId}</td></tr>
+                    <tr><th>Course</th><td>${courseId}</td></tr>
+                    <tr><th>Status</th><td>${studentStatus}</td></tr>
+                </table>
+            `;
+            document.getElementById('student-info').innerHTML = studentInfo;
+
+            // Proceed with fetching and displaying the student's enrollment data as before...
+            const enrollmentDocRef = db.collection('Enrollments').doc(courseId).collection('EnrollmentData').doc(studentId);
+            const enrollmentSnap = await enrollmentDocRef.get();
+
+            if (enrollmentSnap.exists) {
+                const enrollmentData = enrollmentSnap.data();
+                const enrolledSubjects = enrollmentData.enrolledSubject || {};
+                const failedSubjects = enrollmentData.failedSubject || {};
+                const passedSubjects = enrollmentData.passedSubject || {};
+
+                // Create a subject map for easy access
+                const subjectsRef = db.collection('courses').doc(courseId);
+                const subjectsSnap = await subjectsRef.get();
+                const subjectsData = subjectsSnap.data().subjects;
+                const subjectMap = {};
+
+                for (const year in subjectsData) {
+                    for (const semester in subjectsData[year]) {
+                        subjectsData[year][semester].forEach(subject => {
+                            subjectMap[subject.subjectId] = {
+                                name: subject.subjectName,
+                                units: subject.units
+                            };
+                        });
+                    }
+                }
+
+                // Helper function to create table rows
+                const createSubjectRows = (subjects, status) => {
+                    let rows = '';
+                    for (const year in subjects) {
+                        for (const semester in subjects[year]) {
+                            subjects[year][semester].forEach(subjectCode => {
+                                const subjectInfo = subjectMap[subjectCode] || { name: 'Unknown Subject', units: 'N/A' };
+                                rows += `
+                                    <tr>
+                                        <td>${year}</td>
+                                        <td>${semester}</td>
+                                        <td>${subjectCode}</td>
+                                        <td>${subjectInfo.name}</td>
+                                        <td>${subjectInfo.units}</td>
+                                        <td class="${status}">${status.charAt(0).toUpperCase() + status.slice(1)}</td>
+                                        <td>
+                                            ${status === 'enrolled' ? `<button class="status-btn" onclick="markSubjectFailed('${courseId}', '${studentId}', '${year}', '${semester}', '${subjectCode}')">Mark as Failed</button>` : ''}
+                                            ${status === 'failed' ? `<button class="status-btn" onclick="updateSubjectStatus('${courseId}', '${studentId}', '${year}', '${semester}', '${subjectCode}')">Mark as Passed</button>` : ''}
+                                        </td>
+                                    </tr>
+                                `;
+                            });
+                        }
+                    }
+                    return rows;
+                };
+
+                // Populate subject tables
+                document.getElementById('enrolled-subjects').innerHTML = createSubjectRows(enrolledSubjects, 'enrolled');
+                document.getElementById('failed-subjects').innerHTML = createSubjectRows(failedSubjects, 'failed');
+                document.getElementById('passed-subjects').innerHTML = createSubjectRows(passedSubjects, 'passed');
+            } else {
+                alert('Student ID does not exist!');
+            }
+        } else {
+            alert('Student data not found!');
+        }
+    } catch (error) {
+        console.error("Error fetching student data: ", error);
+        alert('Error fetching data, please try again.');
+    }
+}
+
+
+        // Function to mark an enrolled subject as failed
+        async function markSubjectFailed(courseId, studentId, year, semester, subjectCode) {
+            try {
+                const enrollmentRef = db.collection('Enrollments').doc(courseId).collection('EnrollmentData').doc(studentId);
+                const enrollmentDoc = await enrollmentRef.get();
+                const enrolledSubjects = enrollmentDoc.exists ? enrollmentDoc.data().enrolledSubject || {} : {};
+
+                if (enrolledSubjects[year] && enrolledSubjects[year][semester]) {
+                    enrolledSubjects[year][semester] = enrolledSubjects[year][semester].filter(id => id !== subjectCode);
+
+                    if (enrolledSubjects[year][semester].length === 0) {
+                        delete enrolledSubjects[year][semester];
+                    }
+                    if (Object.keys(enrolledSubjects[year] || {}).length === 0) {
+                        delete enrolledSubjects[year];
+                    }
+                }
+
+                const failedSubjects = enrollmentDoc.exists ? enrollmentDoc.data().failedSubject || {} : {};
+                failedSubjects[year] = failedSubjects[year] || {};
+                failedSubjects[year][semester] = failedSubjects[year][semester] || [];
+                if (!failedSubjects[year][semester].includes(subjectCode)) {
+                    failedSubjects[year][semester].push(subjectCode);
+                }
+
+                await enrollmentRef.set({
+                    enrolledSubject: enrolledSubjects,
+                    failedSubject: failedSubjects
+                }, { merge: true });
+
+                alert('Subject marked as Failed.');
+                fetchStudentData();
+            } catch (error) {
+                console.error("Error marking subject as failed: ", error);
+                alert('Error marking subject as failed, please try again.');
+            }
+        }
+
+        // Function to update subject status from failed to passed
+        async function updateSubjectStatus(courseId, studentId, year, semester, subjectCode) {
+            try {
+                const enrollmentRef = db.collection('Enrollments').doc(courseId).collection('EnrollmentData').doc(studentId);
+                const enrollmentDoc = await enrollmentRef.get();
+                const failedSubjects = enrollmentDoc.exists ? enrollmentDoc.data().failedSubject || {} : {};
+                const passedSubjects = enrollmentDoc.exists ? enrollmentDoc.data().passedSubject || {} : {};
+
+                if (failedSubjects[year] && failedSubjects[year][semester]) {
+                    failedSubjects[year][semester] = failedSubjects[year][semester].filter(id => id !== subjectCode);
+
+                    if (failedSubjects[year][semester].length === 0) {
+                        delete failedSubjects[year][semester];
+                    }
+                    if (Object.keys(failedSubjects[year] || {}).length === 0) {
+                        delete failedSubjects[year];
+                    }
+                }
+
+                passedSubjects[year] = passedSubjects[year] || {};
+                passedSubjects[year][semester] = passedSubjects[year][semester] || [];
+                if (!passedSubjects[year][semester].includes(subjectCode)) {
+                    passedSubjects[year][semester].push(subjectCode);
+                }
+
+                await enrollmentRef.set({
+                    failedSubject: failedSubjects,
+                    passedSubject: passedSubjects
+                }, { merge: true });
+
+                alert('Subject marked as Passed.');
+                fetchStudentData();
+            } catch (error) {
+                console.error("Error updating subject status: ", error);
+                alert('Error updating status, please try again.');
+            }
+        }
+
+        window.onload = function() {
+            loadCourses();
+        };
+    </script>
+</head>
+<body>
+    <h1>Admin Panel - Student Management</h1>
+    <form onsubmit="event.preventDefault(); fetchStudentData();">
+        <label for="student-management-course">Course:</label>
+        <select id="student-management-course" required>
+            <option value="" disabled selected>Select a course</option>
+        </select>
+
+        <label for="student-management-student-id">Student ID:</label>
+        <input type="text" id="student-management-student-id" placeholder="Enter Student ID" required>
+
+        <button type="submit">Fetch Student Data</button>
+    </form>
+
+    <div id="student-info"></div>
+
+    <div class="section-header">Enrolled Subjects</div>
+    <div class="subject-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Year</th>
+                    <th>Semester</th>
+                    <th>Subject Code</th>
+                    <th>Subject Name</th>
+                    <th>Units</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="enrolled-subjects">
+                <tr><td colspan="7">Please fetch data for the student.</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section-header">Failed Subjects</div>
+    <div class="subject-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Year</th>
+                    <th>Semester</th>
+                    <th>Subject Code</th>
+                    <th>Subject Name</th>
+                    <th>Units</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="failed-subjects">
+                <tr><td colspan="7">Please fetch data for the student.</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section-header">Passed Subjects</div>
+    <div class="subject-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Year</th>
+                    <th>Semester</th>
+                    <th>Subject Code</th>
+                    <th>Subject Name</th>
+                    <th>Units</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="passed-subjects">
+                <tr><td colspan="7">Please fetch data for the student.</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+</body>
+</html>

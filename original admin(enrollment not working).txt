@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Students</title>
+    <!-- Add any CSS or Bootstrap styles you want here -->
+    <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-auth.js"></script>
+    <script>
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-K6Hfx5jrTvnilwha29ceKov0PC2kII0",
+            authDomain: "pre-advisingdb.firebaseapp.com",
+            projectId: "pre-advisingdb",
+            storageBucket: "pre-advisingdb.appspot.com",
+            messagingSenderId: "879799797410",
+            appId: "1:879799797410:web:9a52fbf15ce59b8bda39fb",
+            measurementId: "G-MSMWJ52KBW"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+    </script>
+</head>
+<body>
+
+    <h1>Admin Panel - Students</h1>
+
+    <!-- Add Student Section -->
+    <section id="add-student">
+        <h2>Add Student</h2>
+        <form id="add-student-form">
+            <label for="student-course">Course:</label>
+            <input type="text" id="student-course" placeholder="Enter Course"><br>
+            
+            <label for="student-id">Student ID:</label>
+            <input type="text" id="student-id" placeholder="Enter Student ID"><br>
+            
+            <label for="student-name">Name:</label>
+            <input type="text" id="student-name" placeholder="Enter Student Name"><br>
+            
+            <label for="student-year">Year Level:</label>
+            <input type="number" id="student-year" placeholder="Enter Year Level"><br>
+            
+            <label for="student-semester">Semester:</label>
+            <input type="number" id="student-semester" placeholder="Enter Semester"><br>
+            
+            <label for="student-status">Status:</label>
+            <input type="text" id="student-status" placeholder="Enter Status"><br>
+            
+            <button type="button" onclick="addStudent()">Add Student</button>
+        </form>
+    </section>
+
+    <!-- Add Enrollment Section -->
+    <section id="add-enrollment">
+        <h2>Add Enrollment</h2>
+        <form id="add-enrollment-form">
+            <label for="enrollment-student-id">Student ID:</label>
+            <input type="text" id="enrollment-student-id" placeholder="Enter Student ID"><br>
+            
+            <label for="enrollment-course">Course:</label>
+            <input type="text" id="enrollment-course" placeholder="Enter Course"><br>
+            
+            <label for="enrollment-subjects">Subjects:</label>
+            <input type="text" id="enrollment-subjects" placeholder="Enter Subjects (comma separated)"><br>
+            
+            <button type="button" onclick="addEnrollment()">Add Enrollment</button>
+        </form>
+    </section>
+
+    <script>
+        // Add Student Function
+        function addStudent() {
+            const course = document.getElementById('student-course').value;
+            const studentId = document.getElementById('student-id').value;
+            const name = document.getElementById('student-name').value;
+            const year = document.getElementById('student-year').value;
+            const semester = document.getElementById('student-semester').value;
+            const status = document.getElementById('student-status').value;
+
+            db.collection('Students').doc(course).collection('StudentData').doc(studentId).set({
+                name: name,
+                studentId: studentId,
+                year: parseInt(year),
+                semester: parseInt(semester),
+                status: status
+            })
+            .then(() => {
+                alert('Student added successfully!');
+                document.getElementById('add-student-form').reset();
+            })
+            .catch(error => {
+                console.error('Error adding student: ', error);
+            });
+        }
+
+        // Add Enrollment Function
+        function addEnrollment() {
+            const studentId = document.getElementById('enrollment-student-id').value;
+            const course = document.getElementById('enrollment-course').value;
+            const subjects = document.getElementById('enrollment-subjects').value.split(',');
+
+            db.collection('Enrollments').doc(course).collection('EnrollmentData').doc(studentId).set({
+                enrolledSubject: { '1': subjects }
+            }, { merge: true })
+            .then(() => {
+                alert('Enrollment added successfully!');
+                document.getElementById('add-enrollment-form').reset();
+            })
+            .catch(error => {
+                console.error('Error adding enrollment: ', error);
+            });
+        }
+    </script>
+
+</body>
+</html>

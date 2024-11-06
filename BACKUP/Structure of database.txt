@@ -1,0 +1,63 @@
+"enrolledSubject" [map]: {
+    "1"[year map]: {
+        1[semester array]: [
+            "DYBITDms113",
+            "DYBITItc113",
+            // More subjects...
+        ]
+    },
+    "2"[year]: {
+        2[semester]: [
+            "DYBITFim123",
+            // More subjects...
+        ]
+    }
+}
+you are missing this on the enrolledsubjects
+
+"failedSubject
+(map)
+
+
+1 [year]
+(map)
+
+
+1 [semester]
+(array)
+
+0
+"DYBITDms113"
+(string)
+
+1
+"DYBITItc113"
+(string) "
+
+-----------------------------------------
+
+"subjects": {
+    "1" [year]: {
+        "1" [semester]: [
+            {
+                "subjectId": "DYBITDms113",
+                "subjectName": "Discrete Mathematical Structures 1",
+                "units": 3,
+                "prerequisites": [],
+                "status": "active"
+            },
+            // More subjects...
+        ]
+    },
+    // More years and semesters...
+}
+
+"years": {
+    "1" [year map]: {
+        "1"[semester map]: { 
+"maxUnits": 27 [number] },
+        "2" [ semester map]: { 
+"maxUnits": 24 [number]}
+    },
+    // More years...
+}

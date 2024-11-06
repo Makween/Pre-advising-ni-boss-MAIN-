@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Landing Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background-color: #333;
+            color: #fff;
+            padding: 10px;
+            text-align: center;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        .section h2 {
+            margin-top: 0;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f5f5f5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Student Landing Page</h1>
+        </div>
+        <div class="section" id="student-info"></div>
+        <div class="section">
+            <h2>Enrolled Subjects:</h2>
+            <div id="enrolled-subjects"></div>
+        </div>
+        <div class="section">
+            <h2>Recommended Subjects:</h2>
+            <div id="recommended-subjects"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.1.3/firebase-app.js';
+        import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-K6Hfx5jrTvnilwha29ceKov0PC2kII0",
+            authDomain: "pre-advisingdb.firebaseapp.com",
+            projectId: "pre-advisingdb",
+            storageBucket: "pre-advisingdb.appspot.com",
+            messagingSenderId: "879799797410",
+            appId: "1:879799797410:web:9a52fbf15ce59b8bda39fb",
+            measurementId: "G-MSMWJ52KBW"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Load student data on page load
+        window.onload = async () => {
+            const studentId = localStorage.getItem('studentId');
+            const course = localStorage.getItem('course');
+
+            if (studentId && course) {
+                await fetchStudentData(studentId, course);
+                await fetchEnrolledSubjects(course, studentId);
+            } else {
+                alert('No student ID found in local storage.');
+                window.location.href = 'studentlogin.html';
+            }
+        };
+
+        // Fetch student data
+        async function fetchStudentData(studentId, course) {
+            try {
+                const docRef = doc(db, `Students/${course}/StudentData`, studentId);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const studentData = docSnap.data();
+                    document.getElementById('student-info').innerHTML = `
+                        <h2>Welcome, ${studentData.name}</h2>
+                        <p>Course: ${course}</p>
+                        <p>Year Level: ${studentData.year}</p>
+                        <p>Semester: ${studentData.semester}</p>
+                        <p>Status: ${studentData.status}</p>
+                    `;
+
+                    if (studentData.status === "Regular") {
+                        await recommendRegularSubjects(course, studentData.year, studentData.semester);
+                    } else if (studentData.status === "Irregular") {
+                        await recommendIrregularSubjects(course, studentId);
+                    }
+                } else {
+                    console.error('No such student document!');
+                }
+            } catch (error) {
+                console.error('Error fetching student data:', error);
+            }
+        }
+
+        // Fetch enrolled subjects
+        async function fetchEnrolledSubjects(course, studentId) {
+            const enrolledSubjectsDiv = document.getElementById('enrolled-subjects');
+            enrolledSubjectsDiv.innerHTML = '<h3>Enrolled Subjects:</h3>';
+            const table = document.createElement('table');
+            table.innerHTML = `
+            <tr>
+                <th>Year</th>
+                <th>Semester</th>
+                <th>Subject Code</th>
+                <th>Subject Name</th>
+                <th>Units</th>
+                <th>Status</th>
+                <th>Indicator</th>
+            </tr>
+        `;
+
+            try {
+                const enrollmentDocRef = doc(db, `Enrollments/${course}/EnrollmentData`, studentId);
+                const enrollmentSnap = await getDoc(enrollmentDocRef);
+
+                if (enrollmentSnap.exists()) {
+                    const enrollmentData = enrollmentSnap.data();
+                    const enrolledSubject = enrollmentData.enrolledSubject || {};
+                    const failedSubject = enrollmentData.failedSubject || {};
+
+                    const coursesRef = doc(db, `courses/${course}`);
+                    const coursesSnap = await getDoc(coursesRef);
+                    const coursesData = coursesSnap.data();
+                    const subjectsData = coursesData.subjects;
+
+                    const subjectMap = {};
+                    for (const year in subjectsData) {
+                        for (const semester in subjectsData[year]) {
+                            const subjectsArray = subjectsData[year][semester];
+                            subjectsArray.forEach(subject => {
+                                subjectMap[subject.subjectId] = {
+                                    name: subject.subjectName,
+                                    units: subject.units
+                                };
+                            });
+                        }
+                    }
+
+                    for (const year in enrolledSubject) {
+                        for (const semester in enrolledSubject[year]) {
+                            const subjectsArray = enrolledSubject[year][semester];
+                            if (Array.isArray(subjectsArray)) {
+                                subjectsArray.forEach(subjectCode => {
+                                    const subjectInfo = subjectMap[subjectCode] || {
+                                        name: 'Unknown Subject',
+                                        units: 'N/A'
+                                    };
+                                    const isFailed = failedSubject[year]?.[semester]?.includes(subjectCode);
+                                    const status = isFailed ? 'Failed' : 'Enrolled';
+                                    const indicator = isFailed ? 'Retake' : 'N/A';
+
+                                    const row = document.createElement('tr');
+                                    row.innerHTML = `
+                                        <td>${year}</td>
+                                        <td>${semester}</td>
+                                        <td>${subjectCode}</td>
+                                        <td>${subjectInfo.name}</td>
+                                        <td>${subjectInfo.units}</td>
+                                        <td>${status}</td>
+                                        <td>${indicator}</td>
+                                    `;
+                                    table.appendChild(row);
+                                });
+                            }
+                        }
+                    }
+                    enrolledSubjectsDiv.appendChild(table);
+                } else {
+                    enrolledSubjectsDiv.innerHTML += `<p>No subjects found for this student.</p>`;
+                }
+            } catch (error) {
+                console.error('Error fetching enrolled subjects:', error);
+            }
+        }
+
+        // Function to recommend regular subjects
+        async function recommendRegularSubjects(course, year, semester) {
+            const recommendedSubjectsDiv = document.getElementById('recommended-subjects');
+            recommendedSubjectsDiv.innerHTML = '<h3>Recommended Subjects for Regular Students:</h3>';
+            const recommendedTable = document.createElement('table');
+            recommendedTable.innerHTML = `
+                <tr>
+                    <th>Year</th>
+                    <th>Semester</th>
+                    <th>Subject Code</th>
+                    <th>Subject Name</th>
+                    <th>Units</th>
+                    <th>Status</th>
+                    <th>Indicator</th>
+                </tr>
+            `;
+
+            try {
+                const subjectsRef = doc(db, `courses/${course}`);
+                const subjectsSnap = await getDoc(subjectsRef);
+                const subjectsData = subjectsSnap.data().subjects;
+
+                const subjects = subjectsData[year]?.[semester];
+                if (subjects && subjects.length > 0) {
+                    subjects.forEach(subject => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${year}</td>
+                            <td>${semester}</td>
+                            <td>${subject.subjectId}</td>
+                            <td>${subject.subjectName}</td>
+                            <td>${subject.units}</td>
+                            <td>Available</td>
+                            <td>N/A</td>
+                        `;
+                        recommendedTable.appendChild(row);
+                    });
+                    recommendedSubjectsDiv.appendChild(recommendedTable);
+                } else {
+                    recommendedSubjectsDiv.innerHTML += `<p>No subjects available for recommendation.</p>`;
+                }
+            } catch (error) {
+                console.error('Error fetching recommended subjects for regular students:', error);
+            }
+        }
+
+        // Function to recommend irregular subjects
+     async function recommendIrregularSubjects(course, studentId) {
+    const recommendedSubjectsDiv = document.getElementById('recommended-subjects');
+    recommendedSubjectsDiv.innerHTML = '<h3>Recommended Subjects for Irregular Students:</h3>';
+    const recommendedTable = document.createElement('table');
+    
+    // Correcting the HTML string for the table header
+    recommendedTable.innerHTML = `
+        <tr>
+            <th>Year</th>
+            <th>Semester</th>
+            <th>Subject Code</th>
+            <th>Subject Name</th>
+            <th>Units</th>
+            <th>Status</th>
+            <th>Indicator</th>
+        </tr>
+    `;
+
+    try {
+        // Fixing Firestore document path construction with backticks
+        const studentDocRef = doc(db, `Students/${course}/StudentData`, studentId);
+        const studentSnap = await getDoc(studentDocRef);
+
+        if (studentSnap.exists()) {
+            const studentData = studentSnap.data();
+            const currentSemester = studentData.semester;
+            const currentYear = studentData.year;
+            const failedSubjects = [];
+
+            const enrollmentDocRef = doc(db, `Enrollments/${course}/EnrollmentData`, studentId);
+            const enrollmentSnap = await getDoc(enrollmentDocRef);
+
+            if (enrollmentSnap.exists()) {
+                const enrollmentData = enrollmentSnap.data();
+                
+                // Fetch failed subjects, making sure to handle the structure properly
+                if (enrollmentData.failedSubject) {
+                    for (const yr in enrollmentData.failedSubject) {
+                        for (const sem in enrollmentData.failedSubject[yr]) {
+                            if (Array.isArray(enrollmentData.failedSubject[yr][sem])) {
+                                failedSubjects.push(...enrollmentData.failedSubject[yr][sem]);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fetch the courses data
+            const subjectsRef = doc(db, `courses/${course}`);
+            const subjectsSnap = await getDoc(subjectsRef);
+
+            if (subjectsSnap.exists()) {
+                const subjectsData = subjectsSnap.data().subjects;
+
+                const subjectMap = {};
+                // Create a subject map for easier lookups
+                for (const year in subjectsData) {
+                    for (const semester in subjectsData[year]) {
+                        const subjectsArray = subjectsData[year][semester];
+                        subjectsArray.forEach(subject => {
+                            subjectMap[subject.subjectId] = {
+                                name: subject.subjectName,
+                                units: subject.units,
+                                prerequisites: subject.prerequisites || []
+                            };
+                        });
+                    }
+                }
+
+                const recommendedSubjects = [];
+                // Iterate over the subject map to generate recommended subjects
+                for (const subjectId in subjectMap) {
+                    const subject = subjectMap[subjectId];
+                    
+                    // Check if subject prerequisites are failed
+                    const hasFailedPrerequisites = subject.prerequisites.some(prereq => failedSubjects.includes(prereq));
+                    
+                    if (!hasFailedPrerequisites) {
+                        recommendedSubjects.push({
+                            year: currentYear, // Adjust if year info needs to be dynamic
+                            semester: currentSemester, // Adjust if semester info needs to be dynamic
+                            subjectId: subjectId,
+                            subjectName: subject.name,
+                            units: subject.units,
+                            status: failedSubjects.includes(subjectId) ? 'Retake' : 'Available',
+                            indicator: failedSubjects.includes(subjectId) ? 'Failed' : 'N/A'
+                        });
+                    }
+                }
+
+                // Populate the table with recommended subjects
+                recommendedSubjects.forEach(subject => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${subject.year}</td>
+                        <td>${subject.semester}</td>
+                        <td>${subject.subjectId}</td>
+                        <td>${subject.subjectName}</td>
+                        <td>${subject.units}</td>
+                        <td>${subject.status}</td>
+                        <td>${subject.indicator}</td>
+                    `;
+                    recommendedTable.appendChild(row);
+                });
+
+                // Append the table to the recommendedSubjectsDiv
+                recommendedSubjectsDiv.appendChild(recommendedTable);
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching recommended subjects for irregular students:', error);
+    }
+}
+
+    </script>
+</body>
+</html>

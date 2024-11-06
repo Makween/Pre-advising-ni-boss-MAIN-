@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel</title>
+    <!-- Import Firebase CDN -->
     <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.19.1/firebase-app.js';
-        import { getFirestore, collection, getDocs, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/9.19.1/firebase-firestore.js';
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
+        import { getFirestore, collection, getDocs, doc, setDoc, getDoc, deleteDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -28,11 +29,10 @@
             const courseSelectElements = document.querySelectorAll('.course-dropdown');
             const coursesColRef = collection(db, 'courses');
             const coursesSnapshot = await getDocs(coursesColRef);
-
             coursesSnapshot.forEach(doc => {
                 courseSelectElements.forEach(select => {
                     const option = document.createElement('option');
-                    option.value = doc.id;
+                    option.value = doc.id;  // Correct value for course ID
                     option.textContent = doc.data().courseName;
                     select.appendChild(option);
                 });
@@ -40,238 +40,286 @@
         }
 
         // Run this when the page loads to populate course dropdowns
-        populateCourseDropdowns();
+        window.onload = populateCourseDropdowns;
 
-        // Add Student Functionality
-        document.getElementById('add-student').addEventListener('click', async () => {
-            const course = document.getElementById('student-course').value;
-            const studentId = document.getElementById('student-id').value;
-            const name = document.getElementById('student-name').value;
-            const yearLevel = document.getElementById('student-year-level').value;
-            const semester = document.getElementById('student-semester').value;
-            const status = document.getElementById('student-status').value;
-
-            try {
-                const studentDocRef = doc(db, `Students/${course}/StudentData`, studentId);
-                await setDoc(studentDocRef, {
-                    name,
-                    studentId,
-                    year: parseInt(yearLevel),
-                    semester: parseInt(semester),
-                    status
-                });
-                alert('Student added successfully!');
-            } catch (error) {
-                console.error('Error adding student:', error);
-            }
-        });
-
-        // Add Enrollment Functionality
-        document.getElementById('add-enrollment').addEventListener('click', async () => {
-            const course = document.getElementById('enrollment-course').value;
-            const studentId = document.getElementById('enrollment-student-id').value;
-            const yearLevel = document.getElementById('enrollment-year-level').value; 
-            const semester = document.getElementById('enrollment-semester').value;
-            const enrolledSubject = document.getElementById('enrolled-subjects').value;
-            const failedSubject = document.getElementById('failed-subjects').value;
+        // Add Subject Functionality
+        document.getElementById('add-subject').addEventListener('click', async (e) => {
+            e.preventDefault();
+            const courseId = document.getElementById('subject-course-id').value;
+            const year = document.getElementById('subject-year').value;
+            const semester = document.getElementById('subject-semester').value;
+            const subjectId = document.getElementById('subject-id').value;
+            const subjectName = document.getElementById('subject-name').value;
+            const units = document.getElementById('subject-units').value;
+            const prerequisites = document.getElementById('subject-prerequisites').value.split(',');
 
             try {
-                const enrollmentDocRef = doc(db, `Enrollments/${course}/EnrollmentData`, studentId);
-                
-                // Fetch existing enrollment data
-                const enrollmentSnapshot = await getDoc(enrollmentDocRef);
-                const existingData = enrollmentSnapshot.exists() ? enrollmentSnapshot.data() : { enrolledSubject: {}, failedSubject: {} };
+                const courseRef = doc(db, 'courses', courseId);
+                const courseSnapshot = await getDoc(courseRef);
 
-                // Update the enrolled subjects and failed subjects for the selected semester and year level
-                const updatedEnrolledSubjects = existingData.enrolledSubject[yearLevel] || {};
-                const updatedFailedSubjects = existingData.failedSubject[yearLevel] || {};
-                
-                // Initialize semesters if not present
-                if (!updatedEnrolledSubjects[semester]) {
-                    updatedEnrolledSubjects[semester] = [];
-                }
-                if (!updatedFailedSubjects[semester]) {
-                    updatedFailedSubjects[semester] = [];
-                }
-
-                // Avoid duplicate entries and only add if not selected as 'None'
-                if (enrolledSubject !== "None") {
-                    if (!updatedEnrolledSubjects[semester].includes(enrolledSubject)) {
-                        updatedEnrolledSubjects[semester].push(enrolledSubject);
-                    }
-                }
-
-                if (failedSubject !== "None") {
-                    if (!updatedFailedSubjects[semester].includes(failedSubject)) {
-                        updatedFailedSubjects[semester].push(failedSubject);
-                    }
-                }
-
-                // Set the document (create it if it doesn't exist)
-                await setDoc(enrollmentDocRef, {
-                    enrolledSubject: {
-                        ...existingData.enrolledSubject,
-                        [yearLevel]: updatedEnrolledSubjects
-                    },
-                    failedSubject: {
-                        ...existingData.failedSubject,
-                        [yearLevel]: updatedFailedSubjects
-                    }
-                }, { merge: true });
-
-                alert('Enrollment added successfully!');
-            } catch (error) {
-                console.error('Error adding enrollment:', error);
-            }
-        });
-
-        // Add Max Units Functionality
-        document.getElementById('set-max-units').addEventListener('click', async () => {
-            const course = document.getElementById('max-units-course').value;
-            const yearLevel = document.getElementById('max-units-year-level').value;
-            const semester = document.getElementById('max-units-semester').value;
-            const maxUnits = document.getElementById('max-units-value').value;
-
-            try {
-                const courseDocRef = doc(db, `courses/${course}/subjects/${yearLevel}/${semester}`);
-                await setDoc(courseDocRef, {
-                    maxUnits: parseInt(maxUnits) // Store max units for the combination
-                }, { merge: true }); // Use merge to prevent overwriting other data
-                alert('Maximum units set successfully!');
-            } catch (error) {
-                console.error('Error setting maximum units:', error);
-            }
-        });
-
-        // Populate subjects dropdowns based on selected course, year, and semester
-        document.getElementById('enrollment-course').addEventListener('change', populateSubjectsDropdowns);
-        document.getElementById('enrollment-year-level').addEventListener('change', populateSubjectsDropdowns);
-        document.getElementById('enrollment-semester').addEventListener('change', populateSubjectsDropdowns);
-
-        async function populateSubjectsDropdowns() {
-            const course = document.getElementById('enrollment-course').value;
-            const yearLevel = document.getElementById('enrollment-year-level').value;
-            const semester = document.getElementById('enrollment-semester').value;
-
-            if (course && yearLevel && semester) {
-                const courseDocRef = doc(db, 'courses', course);
-                const courseSnapshot = await getDoc(courseDocRef);
-                
                 if (courseSnapshot.exists()) {
-                    const subjects = courseSnapshot.data().subjects[yearLevel][semester];
-                    const enrolledSubjectsSelect = document.getElementById('enrolled-subjects');
-                    const failedSubjectsSelect = document.getElementById('failed-subjects');
-                    
-                    enrolledSubjectsSelect.innerHTML = ''; // Clear old options
-                    failedSubjectsSelect.innerHTML = ''; // Clear old options
+                    const existingData = courseSnapshot.data();
+                    const existingSubjects = existingData.subjects || {};
 
-                    // Add "None" option
-                    const noneOption = document.createElement('option');
-                    noneOption.value = "None";
-                    noneOption.textContent = "None";
-                    enrolledSubjectsSelect.appendChild(noneOption);
-                    failedSubjectsSelect.appendChild(noneOption.cloneNode(true));
-
-                    subjects.forEach(subject => {
-                        const option = document.createElement('option');
-                        option.value = subject.subjectId;
-                        option.textContent = `${subject.subjectId} - ${subject.subjectName}`;
-                        enrolledSubjectsSelect.appendChild(option);
-                        failedSubjectsSelect.appendChild(option.cloneNode(true)); // Clone to failed subjects
+                    // Add new subject
+                    if (!existingSubjects[year]) {
+                        existingSubjects[year] = {};
+                    }
+                    if (!existingSubjects[year][semester]) {
+                        existingSubjects[year][semester] = [];
+                    }
+                    existingSubjects[year][semester].push({
+                        subjectId,
+                        subjectName,
+                        units: Number(units),
+                        prerequisites: prerequisites.map(p => p.trim()), // Clean up whitespace
+                        status: 'active' // Default status
                     });
+
+                    // Update Firestore with the modified subjects
+                    await setDoc(courseRef, { subjects: existingSubjects }, { merge: true });
+                    alert('Subject added successfully!');
+                    document.getElementById('subject-form').reset(); // Reset form after submission
+                } else {
+                    alert('Course does not exist.');
                 }
+            } catch (error) {
+                console.error('Error adding subject:', error);
+                alert('Error adding subject: ' + error.message);
             }
+        });
+
+        // Delete Subject Functionality
+        document.getElementById('delete-subject').addEventListener('click', async (e) => {
+            e.preventDefault();
+            const courseId = document.getElementById('delete-subject-course-id').value;
+            const subjectId = document.getElementById('delete-subject-id').value;
+
+            // Confirmation prompt
+            const confirmDelete = confirm(`Are you sure you want to delete the subject ${subjectId} from course ${courseId}?`);
+            if (!confirmDelete) return; // Exit if the user cancels
+
+            try {
+                const courseRef = doc(db, 'courses', courseId);
+                const courseSnapshot = await getDoc(courseRef);
+
+                if (courseSnapshot.exists()) {
+                    const existingData = courseSnapshot.data();
+                    const existingSubjects = existingData.subjects || {};
+
+                    // Find and remove the subject
+                    for (const year in existingSubjects) {
+                        for (const semester in existingSubjects[year]) {
+                            existingSubjects[year][semester] = existingSubjects[year][semester].filter(sub => sub.subjectId !== subjectId);
+                        }
+                    }
+
+                    // Update Firestore with the modified subjects
+                    await setDoc(courseRef, { subjects: existingSubjects }, { merge: true });
+                    alert('Subject deleted successfully!');
+                    document.getElementById('delete-subject-form').reset(); // Reset form after submission
+                } else {
+                    alert('Course does not exist.');
+                }
+            } catch (error) {
+                console.error('Error deleting subject:', error);
+                alert('Error deleting subject: ' + error.message);
+            }
+        });
+
+      // Set Maximum Units Functionality
+document.getElementById('set-max-units').addEventListener('click', async (e) => {
+    e.preventDefault();
+    const courseId = document.getElementById('max-units-course-id').value;
+    const year = document.getElementById('max-units-year').value;
+    const semester = document.getElementById('max-units-semester').value;
+    const maxUnits = document.getElementById('max-units').value;
+
+    try {
+        const courseRef = doc(db, 'courses', courseId);
+        const courseSnapshot = await getDoc(courseRef);
+
+        if (courseSnapshot.exists()) {
+            // Construct the correct path: years -> [year] -> [semester] -> maxUnits
+            const maxUnitsField = `years.${year}.${semester}.maxUnits`;
+
+            // Update the nested structure for maxUnits
+            await updateDoc(courseRef, {
+                [maxUnitsField]: Number(maxUnits)
+            });
+
+            alert('Maximum units updated successfully!');
+            document.getElementById('max-units-form').reset(); // Reset form after submission
+        } else {
+            alert('Course does not exist.');
         }
+    } catch (error) {
+        console.error('Error updating max units:', error);
+        alert('Error updating max units: ' + error.message);
+    }
+});
+
+        // Delete Course Functionality
+        document.getElementById('delete-course').addEventListener('click', async (e) => {
+            e.preventDefault();
+            const courseId = document.getElementById('delete-course-id').value;
+
+            // Confirmation prompt
+            const confirmDelete = confirm(`Are you sure you want to delete the course ${courseId}?`);
+            if (!confirmDelete) return; // Exit if the user cancels
+
+            try {
+                const courseRef = doc(db, 'courses', courseId);
+                await deleteDoc(courseRef);
+                alert('Course deleted successfully!');
+                document.getElementById('delete-course-form').reset(); // Reset form after submission
+                populateCourseDropdowns(); // Refresh dropdowns
+            } catch (error) {
+                console.error('Error deleting course:', error);
+                alert('Error deleting course: ' + error.message);
+            }
+        });
+
     </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        form {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #fff;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input, select {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 3px;
+            background-color: #28a745;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        .button-container {
+            text-align: right; /* Aligns the button to the right */
+            margin-bottom: 20px; /* Adds some space below the button */
+        }
+        .button-container button {
+            background-color: #007bff; /* Blue color for the new button */
+        }
+        .button-container button:hover {
+            background-color: #0069d9; /* Darker blue on hover */
+        }
+    </style>
 </head>
 <body>
     <h1>Admin Panel</h1>
 
-    <!-- Add Student Section -->
-    <h2>Add Student</h2>
-    <label for="student-course">Course:</label>
-    <select id="student-course" class="course-dropdown"></select>
+    <!-- Link to Admin Students Page -->
+    <div class="button-container">
+        <button onclick="window.location.href='admin_students.html'">Manage Students</button>
+    </div>
 
-    <label for="student-id">Student ID:</label>
-    <input type="text" id="student-id">
+    <!-- Add Subject Section -->
+    <h2>Add Subject</h2>
+    <form id="subject-form">
+        <label for="subject-course-id">Course:</label>
+        <select id="subject-course-id" class="course-dropdown" required></select>
 
-    <label for="student-name">Student Name:</label>
-    <input type="text" id="student-name">
+        <label for="subject-year">Year:</label>
+        <select id="subject-year" required>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+        </select>
 
-    <label for="student-year-level">Year Level:</label>
-    <select id="student-year-level">
-        <option value="1">1st Year</option>
-        <option value="2">2nd Year</option>
-        <option value="3">3rd Year</option>
-        <option value="4">4th Year</option>
-    </select>
+        <label for="subject-semester">Semester:</label>
+        <select id="subject-semester" required>
+            <option value="1">1</option>
+            <option value="2">2</option>
+        </select>
 
-    <label for="student-semester">Semester:</label>
-    <select id="student-semester">
-        <option value="1">1st Semester</option>
-        <option value="2">2nd Semester</option>
-    </select>
+        <label for="subject-id">Subject ID:</label>
+        <input type="text" id="subject-id" required />
 
-    <label for="student-status">Status:</label>
-    <select id="student-status">
-        <option value="Regular">Regular</option>
-        <option value="Irregular">Irregular</option>
-    </select>
+        <label for="subject-name">Subject Name:</label>
+        <input type="text" id="subject-name" required />
 
-    <button id="add-student">Add Student</button>
+        <label for="subject-units">Units:</label>
+        <input type="number" id="subject-units" min="1" required />
 
-    <!-- Add Enrollment Section -->
-    <h2>Add Enrollment</h2>
-    <label for="enrollment-course">Course:</label>
-    <select id="enrollment-course" class="course-dropdown"></select>
+        <label for="subject-prerequisites">Prerequisites (comma-separated):</label>
+        <input type="text" id="subject-prerequisites" />
 
-    <label for="enrollment-student-id">Student ID:</label>
-    <input type="text" id="enrollment-student-id">
+        <button type="submit" id="add-subject">Add Subject</button>
+    </form>
 
-    <label for="enrollment-year-level">Year Level:</label>
-    <select id="enrollment-year-level">
-        <option value="1">1st Year</option>
-        <option value="2">2nd Year</option>
-        <option value="3">3rd Year</option>
-        <option value="4">4th Year</option>
-    </select>
+    <!-- Delete Subject Section -->
+    <h2>Delete Subject</h2>
+    <form id="delete-subject-form">
+        <label for="delete-subject-course-id">Course:</label>
+        <select id="delete-subject-course-id" class="course-dropdown" required></select>
 
-    <label for="enrollment-semester">Semester:</label>
-    <select id="enrollment-semester">
-        <option value="1">1st Semester</option>
-        <option value="2">2nd Semester</option>
-    </select>
+        <label for="delete-subject-id">Subject ID:</label>
+        <input type="text" id="delete-subject-id" required />
 
-    <label for="enrolled-subjects">Enrolled Subjects:</label>
-    <select id="enrolled-subjects"></select>
-
-    <label for="failed-subjects">Failed Subjects:</label>
-    <select id="failed-subjects"></select>
-
-    <button id="add-enrollment">Add Enrollment</button>
+        <button type="submit" id="delete-subject">Delete Subject</button>
+    </form>
 
     <!-- Set Maximum Units Section -->
     <h2>Set Maximum Units</h2>
-    <label for="max-units-course">Course:</label>
-    <select id="max-units-course" class="course-dropdown"></select>
+    <form id="max-units-form">
+        <label for="max-units-course-id">Course:</label>
+        <select id="max-units-course-id" class="course-dropdown" required></select>
 
-    <label for="max-units-year-level">Year Level:</label>
-    <select id="max-units-year-level">
-        <option value="1">1st Year</option>
-        <option value="2">2nd Year</option>
-        <option value="3">3rd Year</option>
-        <option value="4">4th Year</option>
-    </select>
+        <label for="max-units-year">Year:</label>
+        <select id="max-units-year" required>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+        </select>
 
-    <label for="max-units-semester">Semester:</label>
-    <select id="max-units-semester">
-        <option value="1">1st Semester</option>
-        <option value="2">2nd Semester</option>
-    </select>
+        <label for="max-units-semester">Semester:</label>
+        <select id="max-units-semester" required>
+            <option value="1">1</option>
+            <option value="2">2</option>
+        </select>
 
-    <label for="max-units-value">Max Units:</label>
-    <input type="number" id="max-units-value" min="1">
+        <label for="max-units">Maximum Units:</label>
+        <input type="number" id="max-units" min="1" required />
 
-    <button id="set-max-units">Set Max Units</button>
+        <button type="submit" id="set-max-units">Set Maximum Units</button>
+    </form>
+
+    <!-- Delete Course Section -->
+    <h2>Delete Course</h2>
+    <form id="delete-course-form">
+        <label for="delete-course-id">Course ID:</label>
+        <input type="text" id="delete-course-id" required />
+
+        <button type="submit" id="delete-course">Delete Course</button>
+    </form>
 </body>
 </html>

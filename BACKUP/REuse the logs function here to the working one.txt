@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Students</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif; 
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+
+        h1, h2 {
+            color: #333;
+        }
+
+        form {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        select, input[type="text"], input[type="checkbox"] {
+            margin: 10px 0;
+            font-size: 16px;
+            padding: 10px;
+            width: 100%;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .subjects-container {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fafafa;
+        }
+
+        .checkbox-container {
+            display: flex;
+            flex-direction: column;
+            margin: 10px;
+            width: 100%;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            padding: 5px 0;
+        }
+
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 600px) {
+            .checkbox-container {
+                width: 100%;
+            }
+        }
+
+        .subject-list {
+            flex: 1;
+            margin: 0 10px;
+        }
+
+        .flex-container {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .subject-column {
+            flex: 1;
+            margin-right: 20px;
+        }
+
+        .subject-column:last-child {
+            margin-right: 0;
+        }
+
+        /* Floating Log Styles */
+        #action-log {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+            z-index: 1000;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .close-log {
+            background-color: #ff5c5c;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            color: white;
+            cursor: pointer;
+            float: right;
+        }
+
+        .floating-log-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        .floating-log-button:hover {
+            background-color: #45a049;
+        }
+
+    </style>
+
+    <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-auth.js"></script>
+    <script>
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-K6Hfx5jrTvnilwha29ceKov0PC2kII0",
+            authDomain: "pre-advisingdb.firebaseapp.com",
+            projectId: "pre-advisingdb",
+            storageBucket: "pre-advisingdb.appspot.com",
+            messagingSenderId: "879799797410",
+            appId: "1:879799797410:web:9a52fbf15ce59b8bda39fb",
+            measurementId: "G-MSMWJ52KBW"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Load courses from Firestore and populate the dropdowns
+        function loadCourses() {
+            db.collection('courses').get().then(snapshot => {
+                const courseDropdowns = document.querySelectorAll('#student-course, #enrollment-course');
+                courseDropdowns.forEach(dropdown => dropdown.innerHTML = '<option value="" disabled selected>Select a course</option>');
+
+                snapshot.forEach(doc => {
+                    const option = document.createElement('option');
+                    option.text = doc.data().courseName;
+                    option.value = doc.id;
+                    courseDropdowns.forEach(dropdown => dropdown.add(option.cloneNode(true)));
+                });
+            }).catch(error => console.error("Error loading courses: ", error));
+        }
+
+        // Fetch subjects based on selected course
+        function fetchSubjects(courseId) {
+            return db.collection('courses').doc(courseId).get().then(doc => {
+                if (doc.exists) {
+                    return doc.data().subjects;
+                } else {
+                    console.error('No such course document exists!');
+                    return [];
+                }
+            }).catch(error => {
+                console.error('Error fetching course data: ', error);
+                return [];
+            });
+        }
+
+        // Load and filter subjects based on year and semester
+        async function filterSubjects() {
+            const courseId = document.getElementById("enrollment-course").value;
+            const yearLevel = document.getElementById("enrollment-year-level").value;
+            const semester = document.getElementById("enrollment-semester").value;
+
+            if (!courseId || !yearLevel || !semester) {
+                return;
+            }
+
+            const subjectsMap = await fetchSubjects(courseId);
+            const enrolledContainer = document.getElementById("enrollment-subjects");
+            const failedContainer = document.getElementById("enrollment-failed-subjects");
+
+            enrolledContainer.innerHTML = '<h3>Enrolled Subjects</h3>';
+            failedContainer.innerHTML = '<h3>Failed Subjects</h3>';
+
+            const subjectsArray = subjectsMap[yearLevel]?.[semester] || [];
+
+            // Populate Enrolled and Failed subjects checkboxes
+            subjectsArray.forEach(subject => {
+                const enrolledCheckbox = document.createElement("div");
+                enrolledCheckbox.className = "checkbox-item";
+                enrolledCheckbox.innerHTML = `<input type="checkbox" value="${subject.subjectId}" id="enrolled-${subject.subjectId}"> 
+                                              <label for="enrolled-${subject.subjectId}">${subject.subjectName}</label>`;
+                enrolledContainer.appendChild(enrolledCheckbox);
+
+                const failedCheckbox = document.createElement("div");
+                failedCheckbox.className = "checkbox-item";
+                failedCheckbox.innerHTML = `<input type="checkbox" value="${subject.subjectId}" id="failed-${subject.subjectId}"> 
+                                            <label for="failed-${subject.subjectId}">${subject.subjectName}</label>`;
+                failedContainer.appendChild(failedCheckbox);
+            });
+        }
+
+        // Show Action Log Function
+        function showActionLog(action) {
+            const logElement = document.getElementById('action-log');
+
+            // Create a new log entry
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<strong>Action:</strong> ${action}<br>
+                                  <strong>Timestamp:</strong> ${new Date().toLocaleString()}<hr>`;
+
+            logElement.appendChild(logEntry);
+            logElement.style.display = 'block';
+        }
+
+        // Add Student Function
+        async function addStudent() {
+            const course = document.getElementById('student-course').value;
+            const studentId = document.getElementById('student-id').value;
+            const name = document.getElementById('student-name').value;
+            const year = document.getElementById('student-year').value;
+            const semester = document.getElementById('student-semester').value;
+            const status = document.getElementById('student-status').value;
+
+            const studentRef = db.collection('Students').doc(course).collection('StudentData').doc(studentId);
+            const studentDoc = await studentRef.get();
+
+            if (studentDoc.exists) {
+                const existingStudent = studentDoc.data();
+                const confirmMessage = `The Student ID ${studentId} already exists.\n\nDetails:\n- Name: ${existingStudent.name}\n- Course: ${course}\n- Year Level: ${existingStudent.year}\n- Semester: ${existingStudent.semester}\n- Status: ${existingStudent.status}\n\nDo you want to update their details?`;
+                if (!confirm(confirmMessage)) {
+                    return;
+                }
+            }
+
+            await studentRef.set({
+                studentId,
+                name,
+                course,
+                year,
+                semester,
+                status
+            });
+
+            showActionLog(`Student ${name} added/updated successfully!`);
+        }
+
+        // Log Button Click Event
+        function toggleLog() {
+            const logElement = document.getElementById('action-log');
+            logElement.style.display = (logElement.style.display === 'block') ? 'none' : 'block';
+        }
+
+        // Close Log Function
+        function closeLog() {
+            document.getElementById('action-log').style.display = 'none';
+        }
+
+        window.onload = () => {
+            loadCourses();
+        }
+    </script>
+</head>
+<body>
+    <h1>Admin Panel</h1>
+
+    <form id="add-student-form">
+        <h2>Add Student</h2>
+        <select id="student-course" required>
+            <option value="" disabled selected>Select a course</option>
+        </select>
+        <input type="text" id="student-id" placeholder="Student ID" required>
+        <input type="text" id="student-name" placeholder="Student Name" required>
+        <input type="text" id="student-year" placeholder="Year Level" required>
+        <input type="text" id="student-semester" placeholder="Semester" required>
+        <select id="student-status" required>
+            <option value="" disabled selected>Select status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+        </select>
+        <button type="button" onclick="addStudent()">Add Student</button>
+    </form>
+
+    <form id="enrollment-form">
+        <h2>Enroll Student</h2>
+        <select id="enrollment-course" onchange="filterSubjects()" required>
+            <option value="" disabled selected>Select a course</option>
+        </select>
+        <input type="text" id="enrollment-year-level" placeholder="Year Level" required>
+        <input type="text" id="enrollment-semester" placeholder="Semester" required>
+        <div id="enrollment-subjects" class="checkbox-container"></div>
+        <div id="enrollment-failed-subjects" class="checkbox-container"></div>
+        <button type="button">Enroll Selected Subjects</button>
+    </form>
+
+    <div id="action-log">
+        <button class="close-log" onclick="closeLog()">Close</button>
+        <h3>Action Log</h3>
+    </div>
+
+    <button class="floating-log-button" onclick="toggleLog()">Logs</button>
+</body>
+</html>
