@@ -229,64 +229,87 @@
             });
         }
 
-        // Add Enrollment Function
-        async function addEnrollment() {
-            const studentId = document.getElementById('enrollment-student-id').value;
-            const course = document.getElementById('enrollment-course').value;
-            const yearLevel = document.getElementById('enrollment-year-level').value;
-            const semester = document.getElementById('enrollment-semester').value;
+    // Add Enrollment Function
+async function addEnrollment() {
+    const studentId = document.getElementById('enrollment-student-id').value;
+    const course = document.getElementById('enrollment-course').value;
+    const yearLevel = document.getElementById('enrollment-year-level').value;
+    const semester = document.getElementById('enrollment-semester').value;
 
-            const enrollmentRef = db.collection('Enrollments').doc(course).collection('EnrollmentData').doc(studentId);
+    const enrollmentRef = db.collection('Enrollments').doc(course).collection('EnrollmentData').doc(studentId);
 
-            // Check if student exists
-            const studentDoc = await db.collection('Students').doc(course).collection('StudentData').doc(studentId).get();
-            if (!studentDoc.exists) {
-                alert("Student ID does not exist!");
-                return;
-            }
+    // Check if student exists
+    const studentDoc = await db.collection('Students').doc(course).collection('StudentData').doc(studentId).get();
+    if (!studentDoc.exists) {
+        alert("Student ID does not exist!");
+        return;
+    }
 
-            // Fetch existing enrollment data
-            const enrollmentSnapshot = await enrollmentRef.get();
-            const enrolledSubjects = enrollmentSnapshot.exists ? enrollmentSnapshot.data().enrolledSubject || {} : {};
-            const failedSubjects = enrollmentSnapshot.exists ? enrollmentSnapshot.data().failedSubject || {} : {};
+    // Log student existence
+    console.log("Student found:", studentDoc.data());
 
-            // Prepare new subjects to add
-            if (!enrolledSubjects[yearLevel]) enrolledSubjects[yearLevel] = {};
-            if (!enrolledSubjects[yearLevel][semester]) enrolledSubjects[yearLevel][semester] = [];
+    // Fetch existing enrollment data
+    const enrollmentSnapshot = await enrollmentRef.get();
+    const enrollmentData = enrollmentSnapshot.exists ? enrollmentSnapshot.data() : {};
+    
+    // Log existing enrollment data
+    console.log("Fetched enrollment data:", enrollmentData);
 
-            // Add enrolled subjects
-            const enrolledCheckboxes = document.querySelectorAll('#enrollment-subjects input[type="checkbox"]:checked');
-            enrolledCheckboxes.forEach(checkbox => {
-                if (!enrolledSubjects[yearLevel][semester].includes(checkbox.value)) {
-                    enrolledSubjects[yearLevel][semester].push(checkbox.value);
-                }
-            });
+    const enrolledSubjects = enrollmentData.enrolledSubject || {};
+    const failedSubjects = enrollmentData.failedSubject || {};
+    const passedSubjects = enrollmentData.passedSubject || {}; // Preserving the passedSubjects data
+    const rolloverSubjects = enrollmentData.rolloverSubjects || {};
 
-            // Add failed subjects
-            const failedCheckboxes = document.querySelectorAll('#enrollment-failed-subjects input[type="checkbox"]:checked');
-            failedCheckboxes.forEach(checkbox => {
-                if (!failedSubjects[yearLevel] || !failedSubjects[yearLevel][semester]) {
-                    failedSubjects[yearLevel] = failedSubjects[yearLevel] || {};
-                    failedSubjects[yearLevel][semester] = [];
-                }
-                if (!failedSubjects[yearLevel][semester].includes(checkbox.value)) {
-                    failedSubjects[yearLevel][semester].push(checkbox.value);
-                }
-            });
+    // Log existing passed subjects for debugging
+    console.log("Existing passed subjects:", passedSubjects);
 
-            // Update enrollment document
-            enrollmentRef.set({
-                enrolledSubject: enrolledSubjects,
-                failedSubject: failedSubjects
-            })
-            .then(() => {
-                alert("Enrollment added successfully!");
-                document.getElementById('add-enrollment-form').reset();
-            })
-            .catch(error => {
-                console.error("Error adding enrollment: ", error);
-            });
+    // Prepare new subjects to add
+    if (!enrolledSubjects[yearLevel]) enrolledSubjects[yearLevel] = {};
+    if (!enrolledSubjects[yearLevel][semester]) enrolledSubjects[yearLevel][semester] = [];
+
+    // Add enrolled subjects
+    const enrolledCheckboxes = document.querySelectorAll('#enrollment-subjects input[type="checkbox"]:checked');
+    enrolledCheckboxes.forEach(checkbox => {
+        if (!enrolledSubjects[yearLevel][semester].includes(checkbox.value)) {
+            enrolledSubjects[yearLevel][semester].push(checkbox.value);
         }
+    });
+
+    // Add failed subjects
+    const failedCheckboxes = document.querySelectorAll('#enrollment-failed-subjects input[type="checkbox"]:checked');
+    failedCheckboxes.forEach(checkbox => {
+        if (!failedSubjects[yearLevel]) failedSubjects[yearLevel] = {};
+        if (!failedSubjects[yearLevel][semester]) failedSubjects[yearLevel][semester] = [];
+        if (!failedSubjects[yearLevel][semester].includes(checkbox.value)) {
+            failedSubjects[yearLevel][semester].push(checkbox.value);
+        }
+    });
+
+    // Log data before updating
+    console.log("Data before update:", {
+        enrolledSubjects,
+        failedSubjects,
+        passedSubjects,
+        rolloverSubjects
+    });
+
+    // Now, we'll try to preserve passedSubjects and rolloverSubjects by updating only the necessary parts
+    try {
+        await enrollmentRef.set({
+            enrolledSubject: enrolledSubjects,
+            failedSubject: failedSubjects,
+            passedSubject: passedSubjects,  // Preserve passed subjects by explicitly passing them
+            rolloverSubjects: rolloverSubjects  // Preserve rollover subjects
+        }, { merge: true });
+
+        alert("Enrollment added successfully!");
+        document.getElementById('add-enrollment-form').reset();
+    } catch (error) {
+        console.error("Error adding enrollment: ", error);
+        alert('Error adding enrollment, please try again.');
+    }
+}
+
 
         // Load courses on page load
         window.onload = loadCourses;

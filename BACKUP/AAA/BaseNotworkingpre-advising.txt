@@ -333,11 +333,12 @@ async function recommendRegularSubjects(course, year, semester) {
         console.error('Error fetching recommended subjects for regular students:', error);
     }
 }
-///WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+
 async function recommendIrregularSubjects(course, studentId) {
     const recommendedSubjectsDiv = document.getElementById('recommended-subjects');
     recommendedSubjectsDiv.innerHTML = '<h3>Recommended Subjects for Irregular Students:</h3>';
     const recommendedTable = document.createElement('table');
+
     recommendedTable.innerHTML = `
         <tr>
             <th>Year</th>
@@ -366,8 +367,8 @@ async function recommendIrregularSubjects(course, studentId) {
         const enrollmentDocRef = doc(db, `Enrollments/${course}/EnrollmentData`, studentId);
         const enrollmentSnap = await getDoc(enrollmentDocRef);
         const failedSubjects = [];
-        const missedSubjects = [];
-        const passedSubjects = [];
+        const missedSubjects = []; // Array to track subjects missed due to max units limit
+        const rolloverSubjects = []; // Array for storing rollover subjects
 
         if (enrollmentSnap.exists()) {
             const enrollmentData = enrollmentSnap.data();
@@ -381,13 +382,13 @@ async function recommendIrregularSubjects(course, studentId) {
                     }
                 }
             }
-
-            if (enrollmentData.passedSubject) {
-                for (const yr in enrollmentData.passedSubject) {
-                    for (const sem in enrollmentData.passedSubject[yr]) {
-                        const subjectsArray = enrollmentData.passedSubject[yr][sem];
+            // Load existing rollover subjects from the enrollment data
+            if (enrollmentData.rolloverSubjects) {
+                for (const yr in enrollmentData.rolloverSubjects) {
+                    for (const sem in enrollmentData.rolloverSubjects[yr]) {
+                        const subjectsArray = enrollmentData.rolloverSubjects[yr][sem];
                         if (Array.isArray(subjectsArray)) {
-                            passedSubjects.push(...subjectsArray.map(subjectId => ({ subjectId, yr, sem })));
+                            rolloverSubjects.push(...subjectsArray.map(subjectId => ({ subjectId, yr, sem })));
                         }
                     }
                 }
@@ -406,105 +407,75 @@ async function recommendIrregularSubjects(course, studentId) {
         const recommendedSubjects = [];
         let remainingUnits = subjectsData.years[currentYear]?.[currentSemester]?.maxUnits || 0;
 
-       // Updated addSubjectToRecommendation function with debugging
-function addSubjectToRecommendation(subject, status, indicator, targetYear, targetSemester) {
-    const subjectData = subjectsData.subjects[targetYear]?.[targetSemester]?.find(sub => sub.subjectId === subject.subjectId);
-    
-    if (subjectData) {
-        console.log(`Adding subject: ${subjectData.subjectName} to recommendations.`);
-        if (remainingUnits >= subjectData.units) {
-            recommendedSubjects.push({
-                year: targetYear,
-                semester: targetSemester,
-                subjectId: subjectData.subjectId,
-                subjectName: subjectData.subjectName,
-                units: subjectData.units,
-                status: status,
-                indicator: indicator
-            });
-            remainingUnits -= subjectData.units;
-            console.log(`Added ${subjectData.subjectName} to recommendations. Remaining units: ${remainingUnits}`);
-        } else {
-            console.log(`Not enough remaining units for subject: ${subjectData.subjectName}`);
-        }
-    } else {
-        console.warn(`Undefined year or semester for subject: ${JSON.stringify(subject)}`);
-    }
-}
+        function addSubjectsToRecommended(subjectList, status, indicator, targetYear = null, targetSemester = null, isRollover = false) {
+            subjectList.forEach(subject => {
+                let subjectFound = false;
 
-        function doesSubjectHavePassedPrereqs(subject) {
-            const prereqs = subject.prerequisites || [];
-            return prereqs.every(prereq => passedSubjects.some(passed => passed.subjectId === prereq));
-        }
+                for (const yr in subjectsData.subjects) {
+                    for (const sem in subjectsData.subjects[yr]) {
+                        const subjectData = subjectsData.subjects[yr][sem].find(sub => sub.subjectId === subject.subjectId);
+                        if (subjectData) {
+                            subjectFound = true;
 
-        // Recommend missed subjects with now-satisfied prerequisites
-        function recommendMissedPrereqSubjects() {
-            for (let year = 1; year <= currentYear; year++) {
-                for (let semester = 1; semester <= 2; semester++) {
-                    if (year < currentYear || (year === currentYear && semester <= currentSemester)) {
-                        const missedSubjectsInSemester = subjectsData.subjects[year]?.[semester] || [];
-                        missedSubjectsInSemester.forEach(subject => {
-                            if (
-                                doesSubjectHavePassedPrereqs(subject) &&
-                                !recommendedSubjects.some(rec => rec.subjectId === subject.subjectId) &&
-                                !passedSubjects.some(passed => passed.subjectId === subject.subjectId)
-                            ) {
-                                addSubjectToRecommendation(subject, 'Retake (Missed Prereq)', 'Prerequisite Met', year, semester);
+                            // Check if it is a rollover or if there is space for regular subjects
+                            if (isRollover || (remainingUnits >= subjectData.units)) {
+                                recommendedSubjects.push({
+                                    year: targetYear || subject.yr || yr,
+                                    semester: targetSemester || subject.sem || sem,
+                                    subjectId: subjectData.subjectId,
+                                    subjectName: subjectData.subjectName,
+                                    units: subjectData.units,
+                                    status: isRollover ? 'Retake (Rollover)' : status,
+                                    indicator: indicator
+                                });
+
+                                if (!isRollover) {
+                                    remainingUnits -= subjectData.units; // Deduct units only if it's not a rollover
+                                }
+                            } else {
+                                missedSubjects.push({
+                                    subjectId: subject.subjectId,
+                                    yr: targetYear || subject.yr || yr,
+                                    sem: targetSemester || subject.sem || sem
+                                }); // Ensure yr and sem are captured for missed subjects
                             }
-                        });
+                            break;
+                        }
                     }
-                }
-            }
-        }
-
-        // Recommend failed subjects
-        function recommendFailedSubjects() {
-            failedSubjects.forEach(failedSubject => {
-                addSubjectToRecommendation(failedSubject, 'Retake', 'Failed', failedSubject.yr, failedSubject.sem);
-            });
-        }
-
-        // Recommend rollover subjects from missed semesters
-        function recommendRolloverSubjects() {
-            failedSubjects.forEach(failedSubject => {
-                const rolloverSubject = {
-                    subjectId: failedSubject.subjectId,
-                    yr: failedSubject.yr, 
-                    sem: failedSubject.sem
-                };
-                if (
-                    !recommendedSubjects.some(rec => rec.subjectId === rolloverSubject.subjectId) &&
-                    !passedSubjects.some(passed => passed.subjectId === rolloverSubject.subjectId)
-                ) {
-                    addSubjectToRecommendation(rolloverSubject, 'Retake (Rollover)', 'Missed', rolloverSubject.yr, rolloverSubject.sem);
+                    if (subjectFound) break;
                 }
             });
         }
 
-        // Recommend regular subjects for the current semester
-function recommendCurrentSemesterSubjects() {
-    const currentSemesterSubjects = subjectsData.subjects[currentYear]?.[currentSemester] || [];
-    currentSemesterSubjects.forEach(subject => {
-        console.log(`Processing subject: ${subject.subjectId}, Year: ${currentYear}, Semester: ${currentSemester}`);
-        
-        if (doesSubjectHavePassedPrereqs(subject) && !recommendedSubjects.some(rec => rec.subjectId === subject.subjectId)) {
-            if (remainingUnits >= subject.units) {
-                addSubjectToRecommendation(subject, 'Regular', 'Eligible', currentYear, currentSemester);
-            } else {
-                console.log(`Not enough remaining units for subject: ${subject.subjectName}`);
+        // Add rollover missed subjects first as "Retake (Rollover)" in the current semester
+        addSubjectsToRecommended(missedSubjects.filter(sub => !rolloverSubjects.map(r => r.subjectId).includes(sub.subjectId)), 'Retake (Rollover)', 'Missed', currentYear, currentSemester, true);
+
+        // Add failed subjects next, retaining original year/semester, marked as "Retake"
+        addSubjectsToRecommended(failedSubjects, 'Retake', 'Failed');
+
+        // Fetch current semester subjects eligible for the student (no failed prerequisites)
+        const currentSemesterSubjects = subjectsData.subjects[currentYear]?.[currentSemester] || [];
+        const availableSubjects = currentSemesterSubjects.filter(subject => {
+            return subject.prerequisites.every(prerequisite => !failedSubjects.map(f => f.subjectId).includes(prerequisite));
+        });
+
+        // Add available subjects within remaining unit limit (regular subjects)
+        addSubjectsToRecommended(availableSubjects.map(sub => ({ subjectId: sub.subjectId })), 'Available', 'N/A', currentYear, currentSemester);
+
+        // Handle any rollover of missed subjects for the next semester/year
+        if (missedSubjects.length > 0) {
+            let nextYear = currentYear;
+            let nextSemester = (currentSemester === "2") ? "1" : "2"; // Switch semester
+
+            if (nextSemester === "1") {
+                nextYear = (parseInt(currentYear) + 1).toString(); // Increment year if moving to first semester
             }
-        } else {
-            console.log(`Prerequisites not met or already recommended for subject: ${subject.subjectName}`);
+
+            // Add missed subjects as "Retake (Rollover)" status in the next semester/year
+            addSubjectsToRecommended(missedSubjects.filter(sub => !rolloverSubjects.map(r => r.subjectId).includes(sub.subjectId)), 'Retake (Rollover)', 'Missed', nextYear, nextSemester, true);
         }
-    });
-}
 
-        // Execute recommendation functions in the desired order
-        recommendFailedSubjects();
-        recommendRolloverSubjects();
-        recommendMissedPrereqSubjects();
-        recommendCurrentSemesterSubjects();
-
+        // Populate the recommended table with subjects
         recommendedSubjects.forEach(subject => {
             const row = document.createElement('tr');
             row.innerHTML = `
@@ -521,13 +492,18 @@ function recommendCurrentSemesterSubjects() {
 
         recommendedSubjectsDiv.appendChild(recommendedTable);
 
-        // Update enrollment data with rollover subjects in Firestore
-        updateEnrollmentDataWithRolloverSubjects(course, studentId, recommendedSubjects);
+        if (recommendedSubjects.length === 0) {
+            recommendedSubjectsDiv.innerHTML += `<p>No subjects added to recommended list.</p>`;
+            console.warn("No subjects added to recommended list.");
+        }
+
+        // Update the enrollment data with new rollover subjects in the database
+        await updateEnrollmentDataWithRolloverSubjects(course, studentId, missedSubjects); // Pass course as an argument
+
     } catch (error) {
-        console.error('Error recommending subjects:', error);
+        console.error('Error fetching recommended subjects for irregular students:', error);
     }
 }
-
 
 // Function to update the enrollment data with rollover subjects
 async function updateEnrollmentDataWithRolloverSubjects(course, studentId, missedSubjects) {
@@ -570,9 +546,10 @@ async function updateEnrollmentDataWithRolloverSubjects(course, studentId, misse
         }, { merge: true });
 
     } else {
-        console.warn('Enrollment data not found for student.');
+        console.warn('Enrollment data not found for updating rollover subjects.');
     }
-}  
+}
+
 
     </script>
 </body>

@@ -277,43 +277,86 @@
             }
         }
 
-        // Function to update subject status from failed to passed
-        async function updateSubjectStatus(courseId, studentId, year, semester, subjectCode) {
-            try {
-                const enrollmentRef = db.collection('Enrollments').doc(courseId).collection('EnrollmentData').doc(studentId);
-                const enrollmentDoc = await enrollmentRef.get();
-                const failedSubjects = enrollmentDoc.exists ? enrollmentDoc.data().failedSubject || {} : {};
-                const passedSubjects = enrollmentDoc.exists ? enrollmentDoc.data().passedSubject || {} : {};
+       // Function to update subject status from failed to passed
+       async function updateSubjectStatus(courseId, studentId, year, semester, subjectCode) {
+    try {
+        const enrollmentRef = db.collection('Enrollments').doc(courseId).collection('EnrollmentData').doc(studentId);
+        const enrollmentDoc = await enrollmentRef.get();
 
-                if (failedSubjects[year] && failedSubjects[year][semester]) {
-                    failedSubjects[year][semester] = failedSubjects[year][semester].filter(id => id !== subjectCode);
+        if (!enrollmentDoc.exists) {
+            alert('Enrollment data not found.');
+            return;
+        }
 
-                    if (failedSubjects[year][semester].length === 0) {
-                        delete failedSubjects[year][semester];
-                    }
-                    if (Object.keys(failedSubjects[year] || {}).length === 0) {
-                        delete failedSubjects[year];
-                    }
+        const data = enrollmentDoc.data();
+        let failedSubjects = data.failedSubject || {};
+        let passedSubjects = data.passedSubject || {};
+
+        // Log the entire failed subjects map to check all year-semester combinations
+        console.log('Failed Subjects before:', failedSubjects);
+
+        // Check if the year and semester combination exists in the failed subjects map
+        if (failedSubjects[year] && failedSubjects[year][semester]) {
+            // Log the specific semester data to ensure we're removing the subject correctly
+            console.log(`Failed Subjects for ${year}, ${semester}:`, failedSubjects[year][semester]);
+
+            // Filter out the subject to be removed
+            const updatedFailedSubjects = failedSubjects[year][semester].filter(id => id !== subjectCode);
+            console.log("Updated Failed Subjects:", updatedFailedSubjects);
+
+            // If the subject was found and removed, update the failedSubject map
+            if (updatedFailedSubjects.length !== failedSubjects[year][semester].length) {
+                failedSubjects[year][semester] = updatedFailedSubjects;
+
+                // If no subjects are left in the semester, remove the semester from the year
+                if (updatedFailedSubjects.length === 0) {
+                    delete failedSubjects[year][semester];
                 }
 
-                passedSubjects[year] = passedSubjects[year] || {};
-                passedSubjects[year][semester] = passedSubjects[year][semester] || [];
-                if (!passedSubjects[year][semester].includes(subjectCode)) {
-                    passedSubjects[year][semester].push(subjectCode);
+                // If no semesters are left for the year, remove the year
+                if (Object.keys(failedSubjects[year] || {}).length === 0) {
+                    delete failedSubjects[year];
                 }
-
-                await enrollmentRef.set({
-                    failedSubject: failedSubjects,
-                    passedSubject: passedSubjects
-                }, { merge: true });
-
-                alert('Subject marked as Passed.');
-                fetchStudentData();
-            } catch (error) {
-                console.error("Error updating subject status: ", error);
-                alert('Error updating status, please try again.');
             }
         }
+
+        // Log after updating to check if the subject was removed from the failedSubjects map
+        console.log('Failed Subjects after:', failedSubjects);
+
+        // Add the subject to the passedSubjects map
+        if (!passedSubjects[year]) passedSubjects[year] = {};
+        if (!passedSubjects[year][semester]) passedSubjects[year][semester] = [];
+
+        // Avoid adding duplicates to passed subjects
+        if (!passedSubjects[year][semester].includes(subjectCode)) {
+            passedSubjects[year][semester].push(subjectCode);
+        }
+
+        // Log the passed subjects after adding the subject
+        console.log('Passed Subjects after:', passedSubjects);
+
+        // Explicitly reset failed subjects to empty arrays if nothing is left
+        if (Object.keys(failedSubjects).length === 0) {
+            failedSubjects = {};  // Force empty object if no failed subjects left
+        }
+
+        // Update Firestore with the new data using update instead of set
+        await enrollmentRef.update({
+            failedSubject: failedSubjects,
+            passedSubject: passedSubjects
+        });
+
+        // Force another fetch to verify the update
+        const updatedEnrollmentDoc = await enrollmentRef.get();
+        console.log('Updated Firestore Data:', updatedEnrollmentDoc.data());
+
+        alert('Subject marked as Passed.');
+        fetchStudentData();  // Refresh the student data
+    } catch (error) {
+        console.error("Error updating status: ", error);
+        alert('Error updating status, please try again.');
+    }
+}
 
         window.onload = function() {
             loadCourses();
