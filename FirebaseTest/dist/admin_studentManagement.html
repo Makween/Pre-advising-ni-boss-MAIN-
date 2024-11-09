@@ -145,6 +145,7 @@
     document.getElementById('enrolled-subjects').innerHTML = '<tr><td colspan="7">Loading data...</td></tr>';
     document.getElementById('failed-subjects').innerHTML = '<tr><td colspan="7">Loading data...</td></tr>';
     document.getElementById('passed-subjects').innerHTML = '<tr><td colspan="7">Loading data...</td></tr>';
+    document.getElementById('missed-subjects').innerHTML = '<tr><td colspan="7">Loading data...</td></tr>'; // Add missed subjects table
 
     try {
         // Fetch student basic info (name and status)
@@ -177,6 +178,7 @@
                 const enrolledSubjects = enrollmentData.enrolledSubject || {};
                 const failedSubjects = enrollmentData.failedSubject || {};
                 const passedSubjects = enrollmentData.passedSubject || {};
+                const missedSubjects = enrollmentData.missedSubject || {}; // Fetch missed subjects
 
                 // Create a subject map for easy access
                 const subjectsRef = db.collection('courses').doc(courseId);
@@ -195,7 +197,7 @@
                     }
                 }
 
-                // Helper function to create table rows
+                // Helper function to create table rows with buttons for status changes
                 const createSubjectRows = (subjects, status) => {
                     let rows = '';
                     for (const year in subjects) {
@@ -212,7 +214,8 @@
                                         <td class="${status}">${status.charAt(0).toUpperCase() + status.slice(1)}</td>
                                         <td>
                                             ${status === 'enrolled' ? `<button class="status-btn" onclick="markSubjectFailed('${courseId}', '${studentId}', '${year}', '${semester}', '${subjectCode}')">Mark as Failed</button>` : ''}
-                                            ${status === 'failed' ? `<button class="status-btn" onclick="updateSubjectStatus('${courseId}', '${studentId}', '${year}', '${semester}', '${subjectCode}')">Mark as Passed</button>` : ''}
+                                            ${status === 'failed' ? `<button class="status-btn" onclick="updateSubjectStatusFailed('${courseId}', '${studentId}', '${year}', '${semester}', '${subjectCode}')">Mark as Passed</button>` : ''}
+                                            ${status === 'missed' ? `<button class="status-btn" onclick="updateSubjectStatus('${courseId}', '${studentId}', '${year}', '${semester}', '${subjectCode}')">Mark as Passed</button>` : ''}
                                         </td>
                                     </tr>
                                 `;
@@ -226,6 +229,7 @@
                 document.getElementById('enrolled-subjects').innerHTML = createSubjectRows(enrolledSubjects, 'enrolled');
                 document.getElementById('failed-subjects').innerHTML = createSubjectRows(failedSubjects, 'failed');
                 document.getElementById('passed-subjects').innerHTML = createSubjectRows(passedSubjects, 'passed');
+                document.getElementById('missed-subjects').innerHTML = createSubjectRows(missedSubjects, 'missed'); // Add missed subjects to the table
             } else {
                 alert('Student ID does not exist!');
             }
@@ -277,86 +281,131 @@
             }
         }
 
-       // Function to update subject status from failed to passed
-       async function updateSubjectStatus(courseId, studentId, year, semester, subjectCode) {
+        // Function to add missed subjects with satisfied prerequisites
+        async function addMissedSubject(courseId, studentId, year, semester, subjectCode) {
     try {
         const enrollmentRef = db.collection('Enrollments').doc(courseId).collection('EnrollmentData').doc(studentId);
         const enrollmentDoc = await enrollmentRef.get();
 
-        if (!enrollmentDoc.exists) {
-            alert('Enrollment data not found.');
-            return;
+        let missedSubjects = enrollmentDoc.exists ? enrollmentDoc.data().missedSubject || {} : {};
+        
+        console.log("Initial Missed Subjects:", missedSubjects);  // Log the initial missed subjects data
+
+        // Ensure the structure exists in missedSubjects
+        if (!missedSubjects[year]) missedSubjects[year] = {};
+        if (!missedSubjects[year][semester]) missedSubjects[year][semester] = [];
+
+        // Check if the subject is already marked as missed
+        if (!missedSubjects[year][semester].includes(subjectCode)) {
+            missedSubjects[year][semester].push(subjectCode);
+            console.log(`Added subject ${subjectCode} to missed subjects in year ${year}, semester ${semester}`);
+        } else {
+            console.log(`Subject ${subjectCode} already marked as missed.`);
         }
 
-        const data = enrollmentDoc.data();
-        let failedSubjects = data.failedSubject || {};
-        let passedSubjects = data.passedSubject || {};
+        // Update Firestore with the new missed subject
+        await enrollmentRef.set({ missedSubject: missedSubjects }, { merge: true });
 
-        // Log the entire failed subjects map to check all year-semester combinations
-        console.log('Failed Subjects before:', failedSubjects);
+        console.log("Updated Missed Subjects in Firestore:", missedSubjects);  // Log after update
+        alert('Missed subject added.');
+        fetchStudentData(); // Refresh to display updated data
+    } catch (error) {
+        console.error("Error adding missed subject:", error);
+        alert('Error adding missed subject, please try again.');
+    }
+}
 
-        // Check if the year and semester combination exists in the failed subjects map
-        if (failedSubjects[year] && failedSubjects[year][semester]) {
-            // Log the specific semester data to ensure we're removing the subject correctly
-            console.log(`Failed Subjects for ${year}, ${semester}:`, failedSubjects[year][semester]);
 
-            // Filter out the subject to be removed
-            const updatedFailedSubjects = failedSubjects[year][semester].filter(id => id !== subjectCode);
-            console.log("Updated Failed Subjects:", updatedFailedSubjects);
 
-            // If the subject was found and removed, update the failedSubject map
-            if (updatedFailedSubjects.length !== failedSubjects[year][semester].length) {
-                failedSubjects[year][semester] = updatedFailedSubjects;
+       // Function to update subject status from failed to passed
+      // Function to update subject status to Passed
+async function updateSubjectStatus(courseId, studentId, year, semester, subjectCode) {
+    try {
+        // Reference to the student enrollment document
+        const enrollmentDocRef = db.collection('Enrollments').doc(courseId).collection('EnrollmentData').doc(studentId);
 
-                // If no subjects are left in the semester, remove the semester from the year
-                if (updatedFailedSubjects.length === 0) {
-                    delete failedSubjects[year][semester];
-                }
+        // Fetch the current enrollment data
+        const enrollmentSnap = await enrollmentDocRef.get();
 
-                // If no semesters are left for the year, remove the year
-                if (Object.keys(failedSubjects[year] || {}).length === 0) {
-                    delete failedSubjects[year];
+        if (enrollmentSnap.exists) {
+            const enrollmentData = enrollmentSnap.data();
+
+            // Check if the subject is in missed subjects
+            if (enrollmentData.missedSubject && enrollmentData.missedSubject[year] && enrollmentData.missedSubject[year][semester]) {
+                const missedSubjects = enrollmentData.missedSubject[year][semester];
+                const index = missedSubjects.indexOf(subjectCode);
+
+                if (index !== -1) {
+                    // Remove the subject from missed subjects
+                    missedSubjects.splice(index, 1);
+
+                    // Add the subject to passed subjects
+                    const passedSubjects = enrollmentData.passedSubject || {};
+                    if (!passedSubjects[year]) passedSubjects[year] = {};
+                    if (!passedSubjects[year][semester]) passedSubjects[year][semester] = [];
+                    passedSubjects[year][semester].push(subjectCode);
+
+                    // Update the Firestore document
+                    await enrollmentDocRef.update({
+                        [`missedSubject.${year}.${semester}`]: missedSubjects,
+                        [`passedSubject.${year}.${semester}`]: passedSubjects[year][semester],
+                    });
+
+                    // Re-render the table after update
+                    fetchStudentData();  // Refresh the table to show updated data
                 }
             }
         }
-
-        // Log after updating to check if the subject was removed from the failedSubjects map
-        console.log('Failed Subjects after:', failedSubjects);
-
-        // Add the subject to the passedSubjects map
-        if (!passedSubjects[year]) passedSubjects[year] = {};
-        if (!passedSubjects[year][semester]) passedSubjects[year][semester] = [];
-
-        // Avoid adding duplicates to passed subjects
-        if (!passedSubjects[year][semester].includes(subjectCode)) {
-            passedSubjects[year][semester].push(subjectCode);
-        }
-
-        // Log the passed subjects after adding the subject
-        console.log('Passed Subjects after:', passedSubjects);
-
-        // Explicitly reset failed subjects to empty arrays if nothing is left
-        if (Object.keys(failedSubjects).length === 0) {
-            failedSubjects = {};  // Force empty object if no failed subjects left
-        }
-
-        // Update Firestore with the new data using update instead of set
-        await enrollmentRef.update({
-            failedSubject: failedSubjects,
-            passedSubject: passedSubjects
-        });
-
-        // Force another fetch to verify the update
-        const updatedEnrollmentDoc = await enrollmentRef.get();
-        console.log('Updated Firestore Data:', updatedEnrollmentDoc.data());
-
-        alert('Subject marked as Passed.');
-        fetchStudentData();  // Refresh the student data
     } catch (error) {
-        console.error("Error updating status: ", error);
-        alert('Error updating status, please try again.');
+        console.error('Error marking subject as passed:', error);
+        alert('Error marking subject as passed!');
     }
 }
+    // Function to update subject status to Passed
+async function updateSubjectStatusFailed(courseId, studentId, year, semester, subjectCode) {
+    try {
+        // Reference to the student enrollment document
+        const enrollmentDocRef = db.collection('Enrollments').doc(courseId).collection('EnrollmentData').doc(studentId);
+
+        // Fetch the current enrollment data
+        const enrollmentSnap = await enrollmentDocRef.get();
+
+        if (enrollmentSnap.exists) {
+            const enrollmentData = enrollmentSnap.data();
+
+            // Check if the subject is in missed subjects
+            if (enrollmentData.failedSubject && enrollmentData.failedSubject[year] && enrollmentData.failedSubject[year][semester]) {
+                const failedSubject = enrollmentData.failedSubject[year][semester];
+                const index = failedSubject.indexOf(subjectCode);
+
+                if (index !== -1) {
+                    // Remove the subject from missed subjects
+                    failedSubject.splice(index, 1);
+
+                    // Add the subject to passed subjects
+                    const passedSubjects = enrollmentData.passedSubject || {};
+                    if (!passedSubjects[year]) passedSubjects[year] = {};
+                    if (!passedSubjects[year][semester]) passedSubjects[year][semester] = [];
+                    passedSubjects[year][semester].push(subjectCode);
+
+                    // Update the Firestore document
+                    await enrollmentDocRef.update({
+                        [`failedSubject.${year}.${semester}`]: failedSubject,
+                        [`passedSubject.${year}.${semester}`]: passedSubjects[year][semester],
+                    });
+
+                    // Re-render the table after update
+                    fetchStudentData();  // Refresh the table to show updated data
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error marking subject as passed:', error);
+        alert('Error marking subject as passed!');
+    }
+}
+
+
 
         window.onload = function() {
             loadCourses();
@@ -416,6 +465,26 @@
             <tbody id="failed-subjects">
                 <tr><td colspan="7">Please fetch data for the student.</td></tr>
             </tbody>
+        </table>
+    </div>
+
+    <!-- Missed Subjects Table -->
+    <h2 class="section-header">Missed Subjects</h2>
+    <div class="subject-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Year</th>
+                    <th>Semester</th>
+                    <th>Subject Code</th>
+                    <th>Subject Name</th>
+                    <th>Units</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="missed-subjects"></tbody>
+           
         </table>
     </div>
 

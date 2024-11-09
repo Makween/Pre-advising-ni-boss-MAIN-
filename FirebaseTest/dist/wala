@@ -1,0 +1,201 @@
+async function recommendDynamicPreAdvising(course, studentId) {
+    const recommendedSubjectsDiv = document.getElementById('recommended-subjects');
+    recommendedSubjectsDiv.innerHTML = '<h3>Dynamic Pre-Advising Recommendations:</h3>';
+    const recommendedTable = document.createElement('table');
+    recommendedTable.innerHTML = `
+        <tr>
+            <th>Year</th>
+            <th>Semester</th>
+            <th>Subject Code</th>
+            <th>Subject Name</th>
+            <th>Units</th>
+            <th>Status</th>
+            <th>Indicator</th>
+        </tr>
+    `;
+
+    try {
+        // Fetch student data
+        const studentDocRef = doc(db, `Students/${course}/StudentData`, studentId);
+        const studentSnap = await getDoc(studentDocRef);
+
+        if (!studentSnap.exists()) {
+            console.warn('Student data not found in Firebase.');
+            return;
+        }
+
+        const studentData = studentSnap.data();
+        const currentYear = studentData.year;
+        const currentSemester = studentData.semester;
+
+        // Fetch enrollment data (failed, rollover, and passed subjects)
+        const enrollmentDocRef = doc(db, `Enrollments/${course}/EnrollmentData`, studentId);
+        const enrollmentSnap = await getDoc(enrollmentDocRef);
+        
+        const failedSubjects = [];
+        const rolloverSubjects = [];
+        const passedSubjects = [];
+
+        if (enrollmentSnap.exists()) {
+            const enrollmentData = enrollmentSnap.data();
+            
+            // Collect failed subjects
+            if (enrollmentData.failedSubject) {
+                for (const yr in enrollmentData.failedSubject) {
+                    for (const sem in enrollmentData.failedSubject[yr]) {
+                        const subjectsArray = enrollmentData.failedSubject[yr][sem];
+                        if (Array.isArray(subjectsArray)) {
+                            failedSubjects.push(...subjectsArray.map(subjectId => ({ subjectId, yr, sem })));
+                        }
+                    }
+                }
+            }
+
+            // Collect rollover subjects
+            if (enrollmentData.rolloverSubjects) {
+                for (const yr in enrollmentData.rolloverSubjects) {
+                    for (const sem in enrollmentData.rolloverSubjects[yr]) {
+                        const subjectsArray = enrollmentData.rolloverSubjects[yr][sem];
+                        if (Array.isArray(subjectsArray)) {
+                            rolloverSubjects.push(...subjectsArray.map(subjectId => ({ subjectId, yr, sem })));
+                        }
+                    }
+                }
+            }
+
+            // Collect passed subjects
+            if (enrollmentData.passedSubjects) {
+                for (const yr in enrollmentData.passedSubjects) {
+                    for (const sem in enrollmentData.passedSubjects[yr]) {
+                        const subjectsArray = enrollmentData.passedSubjects[yr][sem];
+                        if (Array.isArray(subjectsArray)) {
+                            passedSubjects.push(...subjectsArray.map(subjectId => ({ subjectId, yr, sem })));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fetch courses and subjects data
+        const subjectsRef = doc(db, `courses/${course}`);
+        const subjectsSnap = await getDoc(subjectsRef);
+
+        if (!subjectsSnap.exists()) {
+            console.warn('Subjects data not found in Firebase.');
+            return;
+        }
+
+        const subjectsData = subjectsSnap.data();
+        const recommendedSubjects = [];
+        let remainingUnits = subjectsData.years[currentYear]?.[currentSemester]?.maxUnits || 0;
+
+        // Function to add subjects to recommended list
+        function addSubjectsToRecommended(subjectList, status, indicator, targetYear, targetSemester, isRollover = false) {
+            subjectList.forEach(subject => {
+                let subjectFound = false;
+                for (const yr in subjectsData.subjects) {
+                    for (const sem in subjectsData.subjects[yr]) {
+                        const subjectData = subjectsData.subjects[yr][sem].find(sub => sub.subjectId === subject.subjectId);
+                        if (subjectData) {
+                            subjectFound = true;
+
+                            if (isRollover || remainingUnits >= subjectData.units) {
+                                recommendedSubjects.push({
+                                    year: targetYear || subject.yr || yr,
+                                    semester: targetSemester || subject.sem || sem,
+                                    subjectId: subjectData.subjectId,
+                                    subjectName: subjectData.subjectName,
+                                    units: subjectData.units,
+                                    status: isRollover ? 'Retake (Rollover)' : status,
+                                    indicator: indicator
+                                });
+
+                                if (!isRollover) {
+                                    remainingUnits -= subjectData.units; // Deduct units only for non-rollover
+                                }
+                            }
+                            break;
+                        }
+                    }
+                    if (subjectFound) break;
+                }
+            });
+        }
+
+        // Add failed subjects (prioritize retakes)
+        addSubjectsToRecommended(failedSubjects, 'Retake', 'Failed', currentYear, currentSemester);
+
+        // Add rollover subjects (prioritize rollover)
+        addSubjectsToRecommended(rolloverSubjects, 'Retake (Rollover)', 'Missed', currentYear, currentSemester, true);
+
+        // Add available subjects for current semester (prerequisites must be passed)
+        const currentSemesterSubjects = subjectsData.subjects[currentYear]?.[currentSemester] || [];
+        const availableSubjects = currentSemesterSubjects.filter(subject => {
+            return subject.prerequisites.every(prerequisite => passedSubjects.map(p => p.subjectId).includes(prerequisite));
+        });
+
+        addSubjectsToRecommended(availableSubjects.map(sub => ({ subjectId: sub.subjectId })), 'Available', 'N/A', currentYear, currentSemester);
+
+        // Populate the table with the recommended subjects
+        recommendedSubjects.forEach(subject => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${subject.year}</td>
+                <td>${subject.semester}</td>
+                <td>${subject.subjectId}</td>
+                <td>${subject.subjectName}</td>
+                <td>${subject.units}</td>
+                <td>${subject.status}</td>
+                <td>${subject.indicator}</td>
+            `;
+            recommendedTable.appendChild(row);
+        });
+
+        recommendedSubjectsDiv.appendChild(recommendedTable);
+
+        if (recommendedSubjects.length === 0) {
+            recommendedSubjectsDiv.innerHTML += `<p>No subjects added to recommended list.</p>`;
+        }
+
+        // Update rollover subjects in enrollment data
+        await updateEnrollmentDataWithRolloverSubjects(course, studentId, rolloverSubjects);
+
+    } catch (error) {
+        console.error('Error fetching dynamic pre-advising data:', error);
+    }
+}
+
+// Helper function to update enrollment data with rollover subjects
+async function updateEnrollmentDataWithRolloverSubjects(course, studentId, rolloverSubjects) {
+    const enrollmentDocRef = doc(db, `Enrollments/${course}/EnrollmentData`, studentId);
+    const enrollmentSnap = await getDoc(enrollmentDocRef);
+
+    if (enrollmentSnap.exists()) {
+        const enrollmentData = enrollmentSnap.data();
+        const newRolloverSubjects = enrollmentData.rolloverSubjects || {};
+
+        rolloverSubjects.forEach(subject => {
+            const year = subject.yr;
+            const semester = subject.sem;
+            if (year && semester) {
+                if (!newRolloverSubjects[year]) {
+                    newRolloverSubjects[year] = {};
+                }
+                if (!newRolloverSubjects[year][semester]) {
+                    newRolloverSubjects[year][semester] = [];
+                }
+                if (!newRolloverSubjects[year][semester].includes(subject.subjectId)) {
+                    newRolloverSubjects[year][semester].push(subject.subjectId);
+                }
+            }
+        });
+
+        // Update the rollover subjects
+        await setDoc(enrollmentDocRef, {
+            ...enrollmentData,
+            rolloverSubjects: newRolloverSubjects
+        }, { merge: true });
+    } else {
+        console.warn('Enrollment data not found for updating rollover subjects.');
+    }
+}

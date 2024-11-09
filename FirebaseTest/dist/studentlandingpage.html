@@ -333,7 +333,6 @@ async function recommendRegularSubjects(course, year, semester) {
         console.error('Error fetching recommended subjects for regular students:', error);
     }
 }
-///WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
 async function recommendIrregularSubjects(course, studentId) {
     const recommendedSubjectsDiv = document.getElementById('recommended-subjects');
     recommendedSubjectsDiv.innerHTML = '<h3>Recommended Subjects for Irregular Students:</h3>';
@@ -366,7 +365,6 @@ async function recommendIrregularSubjects(course, studentId) {
         const enrollmentDocRef = doc(db, `Enrollments/${course}/EnrollmentData`, studentId);
         const enrollmentSnap = await getDoc(enrollmentDocRef);
         const failedSubjects = [];
-        const missedSubjects = [];
         const passedSubjects = [];
 
         if (enrollmentSnap.exists()) {
@@ -406,55 +404,121 @@ async function recommendIrregularSubjects(course, studentId) {
         const recommendedSubjects = [];
         let remainingUnits = subjectsData.years[currentYear]?.[currentSemester]?.maxUnits || 0;
 
-       // Updated addSubjectToRecommendation function with debugging
-function addSubjectToRecommendation(subject, status, indicator, targetYear, targetSemester) {
-    const subjectData = subjectsData.subjects[targetYear]?.[targetSemester]?.find(sub => sub.subjectId === subject.subjectId);
-    
-    if (subjectData) {
-        console.log(`Adding subject: ${subjectData.subjectName} to recommendations.`);
-        if (remainingUnits >= subjectData.units) {
-            recommendedSubjects.push({
-                year: targetYear,
-                semester: targetSemester,
-                subjectId: subjectData.subjectId,
-                subjectName: subjectData.subjectName,
-                units: subjectData.units,
-                status: status,
-                indicator: indicator
-            });
-            remainingUnits -= subjectData.units;
-            console.log(`Added ${subjectData.subjectName} to recommendations. Remaining units: ${remainingUnits}`);
-        } else {
-            console.log(`Not enough remaining units for subject: ${subjectData.subjectName}`);
+        function addSubjectToRecommendation(subject, status, indicator, targetYear, targetSemester) {
+            const subjectData = subjectsData.subjects[targetYear]?.[targetSemester]?.find(sub => sub.subjectId === subject.subjectId);
+            
+            if (subjectData) {
+                console.log(`Adding subject: ${subjectData.subjectName} to recommendations.`);
+                if (remainingUnits >= subjectData.units) {
+                    recommendedSubjects.push({
+                        year: targetYear,
+                        semester: targetSemester,
+                        subjectId: subjectData.subjectId,
+                        subjectName: subjectData.subjectName,
+                        units: subjectData.units,
+                        status: status,
+                        indicator: indicator
+                    });
+                    remainingUnits -= subjectData.units;
+                    console.log(`Added ${subjectData.subjectName} to recommendations. Remaining units: ${remainingUnits}`);
+                } else {
+                    console.log(`Not enough remaining units for subject: ${subjectData.subjectName}`);
+                }
+            } else {
+                console.warn(`Undefined year or semester for subject: ${JSON.stringify(subject)}`);
+            }
         }
-    } else {
-        console.warn(`Undefined year or semester for subject: ${JSON.stringify(subject)}`);
-    }
-}
 
         function doesSubjectHavePassedPrereqs(subject) {
             const prereqs = subject.prerequisites || [];
             return prereqs.every(prereq => passedSubjects.some(passed => passed.subjectId === prereq));
         }
 
-        // Recommend missed subjects with now-satisfied prerequisites
-        function recommendMissedPrereqSubjects() {
+        async function addMissedSubjectToDatabase(course, studentId, missedSubjects) {
+            console.log('Adding missed subjects to database:');
+            console.log('missedSubjects:', missedSubjects);
+
+            const enrollmentDocRef = doc(db, `Enrollments/${course}/EnrollmentData`, studentId);
+            const enrollmentSnap = await getDoc(enrollmentDocRef);
+
+            if (enrollmentSnap.exists()) {
+                const enrollmentData = enrollmentSnap.data();
+                let missedSubject = enrollmentData.missedSubject || {};
+
+                // Ensure missedSubjects is an array
+                if (!Array.isArray(missedSubjects)) {
+                    missedSubjects = [missedSubjects];
+                }
+
+                missedSubjects.forEach((subject) => {
+                    const { year, semester, subjectCode } = subject;
+                    console.log(`Processing subject: year=${year}, semester=${semester}, subjectCode=${subjectCode}`);
+
+                    if (year && semester && subjectCode) {
+                        // Initialize structure if year or semester is missing
+                        if (!missedSubject[year]) {
+                            missedSubject[year] = {};
+                        }
+
+                        if (!missedSubject[year][semester]) {
+                            missedSubject[year][semester] = [];
+                        }
+
+                        // Add subjectCode to missedSubject list
+                        if (!missedSubject[year][semester].includes(subjectCode)) {
+                            missedSubject[year][semester].push(subjectCode);
+                            console.log(`Added ${subjectCode} as a "Missed Subject" for year ${year}, semester ${semester}.`);
+                        } else {
+                            console.log(`Subject ${subjectCode} already exists in the missed subjects for year ${year}, semester ${semester}.`);
+                        }
+                    } else {
+                        console.warn(`Undefined year, semester, or subjectCode for subject: ${JSON.stringify(subject)}`);
+                    }
+                });
+
+                // Update Firestore with new missedSubject data
+                try {
+                    await setDoc(enrollmentDocRef, {
+                        missedSubject: missedSubject
+                    }, { merge: true });
+
+                    console.log("Document updated with missed subjects.");
+                } catch (error) {
+                    console.error("Error updating Firestore:", error);
+                }
+
+            } else {
+                console.warn('Enrollment data not found for updating missed subjects.');
+            }
+        }
+
+        // Recommend missed prerequisites for subjects
+        async function recommendMissedPrereqSubjects() {
+            const missedSubjects = [];
+
             for (let year = 1; year <= currentYear; year++) {
                 for (let semester = 1; semester <= 2; semester++) {
                     if (year < currentYear || (year === currentYear && semester <= currentSemester)) {
                         const missedSubjectsInSemester = subjectsData.subjects[year]?.[semester] || [];
-                        missedSubjectsInSemester.forEach(subject => {
+                        missedSubjectsInSemester.forEach(async (subject) => {
                             if (
                                 doesSubjectHavePassedPrereqs(subject) &&
                                 !recommendedSubjects.some(rec => rec.subjectId === subject.subjectId) &&
                                 !passedSubjects.some(passed => passed.subjectId === subject.subjectId)
                             ) {
+                                // Add to recommendations table
                                 addSubjectToRecommendation(subject, 'Retake (Missed Prereq)', 'Prerequisite Met', year, semester);
+
+                                // Add to missedSubjects array
+                                missedSubjects.push({ year, semester, subjectCode: subject.subjectId });
                             }
                         });
                     }
                 }
             }
+
+            // Add missedSubjects to Firestore
+            await addMissedSubjectToDatabase(course, studentId, missedSubjects);
         }
 
         // Recommend failed subjects
@@ -482,31 +546,30 @@ function addSubjectToRecommendation(subject, status, indicator, targetYear, targ
         }
 
         // Recommend regular subjects for the current semester
-function recommendCurrentSemesterSubjects() {
-    const currentSemesterSubjects = subjectsData.subjects[currentYear]?.[currentSemester] || [];
-    currentSemesterSubjects.forEach(subject => {
-        console.log(`Processing subject: ${subject.subjectId}, Year: ${currentYear}, Semester: ${currentSemester}`);
-        
-        if (doesSubjectHavePassedPrereqs(subject) && !recommendedSubjects.some(rec => rec.subjectId === subject.subjectId)) {
-            if (remainingUnits >= subject.units) {
-                addSubjectToRecommendation(subject, 'Regular', 'Eligible', currentYear, currentSemester);
-            } else {
-                console.log(`Not enough remaining units for subject: ${subject.subjectName}`);
-            }
-        } else {
-            console.log(`Prerequisites not met or already recommended for subject: ${subject.subjectName}`);
+        function recommendCurrentSemesterSubjects() {
+            const currentSemesterSubjects = subjectsData.subjects[currentYear]?.[currentSemester] || [];
+            currentSemesterSubjects.forEach(subject => {
+                console.log(`Processing subject: ${subject.subjectId}, Year: ${currentYear}, Semester: ${currentSemester}`);
+                
+                if (doesSubjectHavePassedPrereqs(subject) && !recommendedSubjects.some(rec => rec.subjectId === subject.subjectId)) {
+                    if (remainingUnits >= subject.units) {
+                        addSubjectToRecommendation(subject, 'Regular', 'Current Semester', currentYear, currentSemester);
+                    } else {
+                        console.log(`Insufficient units remaining for subject: ${subject.subjectId}`);
+                    }
+                }
+            });
         }
-    });
-}
 
-        // Execute recommendation functions in the desired order
+        // Execute functions
         recommendFailedSubjects();
         recommendRolloverSubjects();
-        recommendMissedPrereqSubjects();
+        await recommendMissedPrereqSubjects();
         recommendCurrentSemesterSubjects();
 
-        recommendedSubjects.forEach(subject => {
-            const row = document.createElement('tr');
+        // Display the recommendations
+        recommendedSubjects.forEach((subject) => {
+            const row = recommendedTable.insertRow();
             row.innerHTML = `
                 <td>${subject.year}</td>
                 <td>${subject.semester}</td>
@@ -514,21 +577,17 @@ function recommendCurrentSemesterSubjects() {
                 <td>${subject.subjectName}</td>
                 <td>${subject.units}</td>
                 <td>${subject.status}</td>
+                                <td>${subject.status}</td>
                 <td>${subject.indicator}</td>
             `;
-            recommendedTable.appendChild(row);
         });
 
         recommendedSubjectsDiv.appendChild(recommendedTable);
 
-        // Update enrollment data with rollover subjects in Firestore
-        updateEnrollmentDataWithRolloverSubjects(course, studentId, recommendedSubjects);
     } catch (error) {
-        console.error('Error recommending subjects:', error);
+        console.error('Error recommending irregular subjects:', error);
     }
 }
-
-
 // Function to update the enrollment data with rollover subjects
 async function updateEnrollmentDataWithRolloverSubjects(course, studentId, missedSubjects) {
     const enrollmentDocRef = doc(db, `Enrollments/${course}/EnrollmentData`, studentId);
