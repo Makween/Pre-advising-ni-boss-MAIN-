@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -24,184 +25,310 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-            // Populate curriculum dropdowns with curriculum names from Firestore
-            async function populateCurriculumDropdowns() {
-                const curriculumSelectElements = document.querySelectorAll('.curriculum-dropdown');
-                const curriculumColRef = collection(db, 'Curriculum');
-                const curriculumSnapshot = await getDocs(curriculumColRef);
-                curriculumSnapshot.forEach(doc => {
-                    curriculumSelectElements.forEach(select => {
+        let originalCourses;
+
+        // Populate curriculum and course dropdowns
+            async function populateDropdowns() {
+                try {
+                    // Populate curriculum dropdowns
+                    const curriculumSelectElements = document.querySelectorAll('.curriculum-dropdown');
+                    const curriculumColRef = collection(db, 'Curriculum');
+                    const curriculumSnapshot = await getDocs(curriculumColRef);
+                    curriculumSnapshot.forEach((doc) => {
+                        curriculumSelectElements.forEach((select) => {
+                            const option = document.createElement('option');
+                            option.value = doc.id;
+                            option.textContent = doc.data().curriculumName;
+                            select.appendChild(option);
+                        });
+                    });
+
+                    // Populate course dropdown
+                    const courseSelect = document.getElementById('curriculum-course');
+                    curriculumSnapshot.forEach((doc) => {
+                        const curriculumData = doc.data();
                         const option = document.createElement('option');
-                        option.value = doc.id;  // Correct value for curriculum ID
-                        option.textContent = doc.data().curriculumName;
-                        select.appendChild(option);
+                        option.value = curriculumData.curriculumCourse;
+                        option.textContent = curriculumData.curriculumCourse;
+                        courseSelect.appendChild(option);
                     });
-                });
-            }
 
-            // Run this when the page loads to populate curriculum dropdowns
-            window.onload = populateCurriculumDropdowns;
-
-       // Create Curriculum Functionality
-        document.getElementById('show-add-subject-form').addEventListener('click', async (e) => {
-            e.preventDefault();
-            const curriculumCode = document.getElementById('curriculum-Code').value;
-            const curriculumName = document.getElementById('curriculum-name').value;
-            const curriculumTitle = document.getElementById('curriculum-title').value;
-            const curriculumCourse = document.getElementById('curriculum-course').value;
-            const curriculumStartYear = document.getElementById('curriculum-start-year').value;
-            const curriculumEndYear = document.getElementById('curriculum-end-year').value;
-
-            try {
-                const curriculumRef = doc(db, 'Curriculum', curriculumCode);
-                const curriculumSnapshot = await getDoc(curriculumRef);
-
-                if (!curriculumSnapshot.exists()) {
-                    // Add new curriculum
-                    await setDoc(curriculumRef, {
-                        curriculumCode,
-                        curriculumName,
-                        curriculumTitle,
-                        curriculumCourse,
-                        curriculumStartYear,
-                        curriculumEndYear,
-                        subjects: {} // Initialize subjects object
-                    });
-                    alert('Curriculum added successfully!');
-                    document.getElementById('curriculum-form').reset(); // Reset form after submission
-                } else {
-                    alert('Curriculum already exists.');
+                    // Store original courses
+                    originalCourses = document.getElementById('curriculum-course');
+                } catch (error) {
+                    console.error('Error populating dropdowns:', error);
                 }
-            } catch (error) {
-                console.error('Error adding curriculum:', error);
-                alert('Error adding curriculum: ' + error.message);
             }
-        });
 
-      // Add Subject Functionality
-document.getElementById('add-subject').addEventListener('click', async (e) => {
-    e.preventDefault();
-    const curriculumId = document.getElementById('subject-curriculum-id').value;
-    const year = document.getElementById('subject-year').value;
-    const semester = document.getElementById('subject-semester').value;
-    const subjectId = document.getElementById('subject-id').value;
-    const subjectName = document.getElementById('subject-name').value;
-    const prerequisites = document.getElementById('subject-prerequisites').value.split(',');
-    const lec = document.getElementById('subject-lec').value;
-    const labUnit = document.getElementById('subject-lab-unit').value;
-    const totalUnits = parseInt(lec) + parseInt(labUnit);
-
-    // Automatically calculate total units
-    document.getElementById('total-units').value = totalUnits;
-
-    try {
-        const curriculumRef = doc(db, 'Curriculum', curriculumId);
-        const curriculumSnapshot = await getDoc(curriculumRef);
-
-        if (curriculumSnapshot.exists()) {
-            const existingData = curriculumSnapshot.data();
-            const existingSubjects = existingData.subjects || {};
-
-            // Add new subject
-            if (!existingSubjects[year]) {
-                existingSubjects[year] = {};
-            }
-            if (!existingSubjects[year][semester]) {
-                existingSubjects[year][semester] = [];
-            }
-            existingSubjects[year][semester].push({
-                subjectId,
-                subjectName,
-                prerequisites,
-                lec,
-                labUnit,
-                totalUnits
+            // Add event listener for Add New Course button
+            document.getElementById('add-course-btn').addEventListener('click', () => {
+                const courseSelect = document.getElementById('curriculum-course');
+                courseSelect.style.display = 'none';
+                const inputField = document.createElement('input');
+                inputField.type = 'text';
+                inputField.id = 'new-course-input';
+                inputField.placeholder = 'Enter new course';
+                courseSelect.replaceWith(inputField);
             });
 
-            // Update Firestore with the modified subjects
-            await setDoc(curriculumRef, { subjects: existingSubjects }, { merge: true });
-            alert('Subject added successfully!');
-            document.getElementById('subject-form').reset(); // Reset form after submission
-        } else {
-            alert('Curriculum does not exist.');
-        }
-    } catch (error) {
-        console.error('Error adding subject:', error);
-        alert('Error adding subject: ' + error.message);
-    }
-});
-        /*
-        // Delete Subject Functionality
-        document.getElementById('delete-subject').addEventListener('click', async (e) => {
-            e.preventDefault();
-            const courseId = document.getElementById('delete-subject-course-id').value;
-            const subjectId = document.getElementById('delete-subject-id').value;
-
-            // Confirmation prompt
-            const confirmDelete = confirm(`Are you sure you want to delete the subject ${subjectId} from course ${courseId}?`);
-            if (!confirmDelete) return; // Exit if the user cancels
-
-            try {
-                const courseRef = doc(db, 'courses', courseId);
-                const courseSnapshot = await getDoc(courseRef);
-
-                if (courseSnapshot.exists()) {
-                    const existingData = courseSnapshot.data();
-                    const existingSubjects = existingData.subjects || {};
-
-                    // Find and remove the subject
-                    for (const year in existingSubjects) {
-                        for (const semester in existingSubjects[year]) {
-                            existingSubjects[year][semester] = existingSubjects[year][semester].filter(sub => sub.subjectId !== subjectId);
-                        }
-                    }
-
-                    // Update Firestore with the modified subjects
-                    await setDoc(courseRef, { subjects: existingSubjects }, { merge: true });
-                    alert('Subject deleted successfully!');
-                    document.getElementById('delete-subject-form').reset(); // Reset form after submission
-                } else {
-                    alert('Course does not exist.');
+            // Add event listener for Save Course button
+            document.getElementById('save-course-btn').addEventListener('click', async () => {
+                try {
+                    const newCourseName = document.getElementById('new-course-name').value;
+                    const newCourseRef = doc(db, 'Courses', newCourseName);
+                    await setDoc(newCourseRef, { courseName: newCourseName });
+                    alert('Course added successfully!');
+                    document.getElementById('add-course-modal').style.display = 'none';
+                    populateCourseDropdown(); // Update course dropdown
+                } catch (error) {
+                    console.error('Error adding course:', error);
+                    alert('Error adding course: ' + error.message);
                 }
-            } catch (error) {
-                console.error('Error deleting subject:', error);
-                alert('Error deleting subject: ' + error.message);
-            }
+            });
+
+            // Add event listener for Cancel Course button
+            document.getElementById('cancel-course-btn').addEventListener('click', () => {
+                const inputField = document.getElementById('new-course-input');
+                inputField.replaceWith(originalCourses);
+                originalCourses.style.display = 'block';
+                document.getElementById('add-course-modal').style.display = 'none';
+            });
+
+            // Run this when the page loads
+            window.onload = populateDropdowns;
+
+        // Add event listener for Add New Course button
+        document.getElementById('add-course-btn').addEventListener('click', () => {
+            document.getElementById('add-course-modal').style.display = 'block';
         });
 
         
-      // Set Maximum Units Functionality
-document.getElementById('set-max-units').addEventListener('click', async (e) => {
-    e.preventDefault();
-    const courseId = document.getElementById('max-units-course-id').value;
-    const year = document.getElementById('max-units-year').value;
-    const semester = document.getElementById('max-units-semester').value;
-    const maxUnits = document.getElementById('max-units').value;
+        
 
-    try {
-        const courseRef = doc(db, 'courses', courseId);
-        const courseSnapshot = await getDoc(courseRef);
+        // Add event listener for Cancel Course button
+        document.getElementById('cancel-course-btn').addEventListener('click', () => {
+            document.getElementById('add-course-modal').style.display = 'none';
+        });
 
-        if (courseSnapshot.exists()) {
-            // Construct the correct path: years -> [year] -> [semester] -> maxUnits
-            const maxUnitsField = `years.${year}.${semester}.maxUnits`;
+        // Create Curriculum Functionality
+            document.getElementById('show-add-subject-form').addEventListener('click', async (e) => {
+                e.preventDefault();
+                const curriculumCode = document.getElementById('curriculum-Code').value;
+                const curriculumName = document.getElementById('curriculum-name').value;
+                const curriculumTitle = document.getElementById('curriculum-title').value;
+                let curriculumCourse;
 
-            // Update the nested structure for maxUnits
-            await updateDoc(courseRef, {
-                [maxUnitsField]: Number(maxUnits)
+                const courseElement = document.getElementById('curriculum-course');
+                if (courseElement && courseElement.tagName === 'INPUT') {
+                    curriculumCourse = courseElement.value;
+                } else if (courseElement) {
+                    curriculumCourse = courseElement.value;
+                } else {
+                    const newCourseInput = document.getElementById('new-course-input');
+                    curriculumCourse = newCourseInput.value;
+                }
+
+                const curriculumStartYear = document.getElementById('curriculum-start-year').value;
+                const curriculumEndYear = document.getElementById('curriculum-end-year').value;
+
+                try {
+                    const curriculumRef = doc(db, 'Curriculum', curriculumCode);
+                    const curriculumSnapshot = await getDoc(curriculumRef);
+
+                    if (curriculumSnapshot.exists()) {
+                        const response = confirm('Curriculum already exists. Update existing data?');
+                        if (response) {
+                            // Update existing curriculum (only changed fields)
+                            await updateDoc(curriculumRef, {
+                                curriculumName: curriculumName !== curriculumSnapshot.data().curriculumName ? curriculumName : curriculumSnapshot.data().curriculumName,
+                                curriculumTitle: curriculumTitle !== curriculumSnapshot.data().curriculumTitle ? curriculumTitle : curriculumSnapshot.data().curriculumTitle,
+                                curriculumCourse: curriculumCourse !== curriculumSnapshot.data().curriculumCourse ? curriculumCourse : curriculumSnapshot.data().curriculumCourse,
+                                curriculumStartYear: curriculumStartYear !== curriculumSnapshot.data().curriculumStartYear ? curriculumStartYear : curriculumSnapshot.data().curriculumStartYear,
+                                curriculumEndYear: curriculumEndYear !== curriculumSnapshot.data().curriculumEndYear ? curriculumEndYear : curriculumSnapshot.data().curriculumEndYear,
+                            });
+                            alert('Curriculum updated successfully!');
+                        } else {
+                            // Cancel update
+                            alert('Update cancelled.');
+                            return;
+                        }
+                    } else {
+                        // Add new curriculum
+                        await setDoc(curriculumRef, {
+                            curriculumCode,
+                            curriculumName,
+                            curriculumTitle,
+                            curriculumCourse,
+                            curriculumStartYear,
+                            curriculumEndYear,
+                            subjects: {}
+                        });
+                        alert('Curriculum added successfully!');
+                        document.getElementById('curriculum-form').reset(); // Reset form after submission
+                    }
+                } catch (error) {
+                    console.error('Error adding/updating curriculum:', error);
+                    alert('Error adding/updating curriculum: ' + error.message);
+                }
             });
+        // Add Subject Functionality
+        document.getElementById('add-subject').addEventListener('click', async (e) => {
+            e.preventDefault();
+            const curriculumId = document.getElementById('subject-curriculum-id').value;
+            const year = document.getElementById('subject-year').value;
+            const semester = document.getElementById('subject-semester').value;
+            const subjectId = document.getElementById('subject-id').value;
+            const subjectName = document.getElementById('subject-name').value;
+            const prerequisites = document.getElementById('subject-prerequisites').value.split(',');
+            const lec = document.getElementById('subject-lec').value;
+            const labUnit = document.getElementById('subject-lab-unit').value;
+            const totalUnits = parseInt(lec) + parseInt(labUnit);
 
-            alert('Maximum units updated successfully!');
-            document.getElementById('max-units-form').reset(); // Reset form after submission
-        } else {
-            alert('Course does not exist.');
-        }
+            // Automatically calculate total units
+            document.getElementById('total-units').value = totalUnits;
+
+            try {
+                const curriculumRef = doc(db, 'Curriculum', curriculumId);
+                const curriculumSnapshot = await getDoc(curriculumRef);
+
+                if (curriculumSnapshot.exists()) {
+                    const existingData = curriculumSnapshot.data();
+                    const existingSubjects = existingData.subjects || {};
+
+                    // Add new subject
+                    if (!existingSubjects[year]) {
+                        existingSubjects[year] = {};
+                    }
+                    if (!existingSubjects[year][semester]) {
+                        existingSubjects[year][semester] = [];
+                    }
+                    existingSubjects[year][semester].push({
+                        subjectId,
+                        subjectName,
+                        prerequisites,
+                        lec,
+                        labUnit,
+                        totalUnits
+                    });
+
+                    // Update Firestore with the modified subjects
+                    await setDoc(curriculumRef, { subjects: existingSubjects }, { merge: true });
+                    alert('Subject added successfully!');
+                    document.getElementById('subject-form').reset(); // Reset form after submission
+                } else {
+                    alert('Curriculum does not exist.');
+                }
+            } catch (error) {
+                console.error('Error adding subject:', error);
+                alert('Error adding subject: ' + error.message);
+            }
+        });
+       // Search Curriculum Functionality
+document.getElementById('search-curriculum-input').addEventListener('input', async (e) => {
+    try {
+        const searchQuery = e.target.value.toLowerCase();
+        const curriculumColRef = collection(db, 'Curriculum');
+        const curriculumSnapshot = await getDocs(curriculumColRef);
+        const curriculumOptions = [];
+
+        curriculumSnapshot.forEach((doc) => {
+            const curriculumData = doc.data();
+            const curriculumName = curriculumData.curriculumName.toLowerCase();
+            const curriculumId = doc.id;
+
+            if (curriculumName.includes(searchQuery)) {
+                curriculumOptions.push({
+                    curriculumId,
+                    curriculumName,
+                    course: curriculumData.curriculumCourse,
+                    year: curriculumData.curriculumStartYear,
+                    semester: curriculumData.curriculumEndYear,
+                    subjects: curriculumData.subjects,
+                });
+            }
+        });
+
+        // Display Curriculum Options
+        const curriculumTableBody = document.getElementById('curriculum-table-body');
+        curriculumTableBody.innerHTML = '';
+
+        curriculumOptions.forEach((curriculum) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${curriculum.curriculumId}</td>
+                <td>${curriculum.curriculumName}</td>
+                <td>${curriculum.course}</td>
+                <td>${curriculum.year}</td>
+                <td>${curriculum.semester}</td>
+                <td>
+                    <button class="view-subjects-btn" data-curriculum-id="${curriculum.curriculumId}">View Subjects</button>
+                </td>
+            `;
+            curriculumTableBody.appendChild(row);
+        });
     } catch (error) {
-        console.error('Error updating max units:', error);
-        alert('Error updating max units: ' + error.message);
+        console.error('Error searching curriculum:', error);
     }
 });
-        */
+
+// View Subjects Functionality
+document.addEventListener('click', async (e) => {
+    if (e.target.classList.contains('view-subjects-btn')) {
+        try {
+            const curriculumId = e.target.dataset.curriculumId;
+            const curriculumRef = doc(db, 'Curriculum', curriculumId);
+            const curriculumSnapshot = await getDoc(curriculumRef);
+            const curriculumData = curriculumSnapshot.data();
+            const subjects = curriculumData.subjects;
+
+            // Display Subjects Table
+            const subjectsTableContainer = document.getElementById('subjects-table-container');
+            subjectsTableContainer.innerHTML = `
+    <h3>Subjects for ${curriculumData.curriculumName}</h3>
+    <table id="subjects-table">
+                    <thead>
+                        <tr>
+                            <th>Subject ID</th>
+                            <th>Subject Name</th>
+                            <th>Year</th>
+                            <th>Semester</th>
+                            <th>LEC</th>
+                            <th>Lab Unit</th>
+                            <th>Total Units</th>
+                        </tr>
+                    </thead>
+                    <tbody id="subjects-table-body">
+                    </tbody>
+                </table>
+            `;
+
+            // Display Subjects Data
+            const subjectsTableBody = document.getElementById('subjects-table-body');
+            subjectsTableBody.innerHTML = '';
+
+            Object.keys(subjects).forEach((year) => {
+                Object.keys(subjects[year]).forEach((semester) => {
+                    subjects[year][semester].forEach((subject) => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${subject.subjectId}</td>
+                            <td>${subject.subjectName}</td>
+                            <td>${year}</td>
+                            <td>${semester}</td>
+                            <td>${subject.lec}</td>
+                            <td>${subject.labUnit}</td>
+                            <td>${subject.totalUnits}</td>
+                        `;
+                        subjectsTableBody.appendChild(row);
+                    });
+                });
+            });
+        } catch (error) {
+            console.error('Error viewing subjects:', error);
+        }
+    }
+});
+
 
     </script>
     <style>
@@ -211,9 +338,12 @@ document.getElementById('set-max-units').addEventListener('click', async (e) => 
             padding: 20px;
             background-color: #f4f4f4;
         }
-        h1, h2 {
+
+        h1,
+        h2 {
             color: #333;
         }
+
         form {
             margin-bottom: 20px;
             padding: 15px;
@@ -221,17 +351,21 @@ document.getElementById('set-max-units').addEventListener('click', async (e) => 
             border-radius: 5px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
+
         label {
             display: block;
             margin-bottom: 5px;
         }
-        input, select {
+
+        input,
+        select {
             width: calc(100% - 20px);
             padding: 10px;
             margin-bottom: 10px;
             border: 1px solid #ccc;
             border-radius: 3px;
         }
+
         button {
             padding: 10px 15px;
             border: none;
@@ -240,51 +374,111 @@ document.getElementById('set-max-units').addEventListener('click', async (e) => 
             color: white;
             cursor: pointer;
         }
+
         button:hover {
             background-color: #218838;
         }
+
         .button-container {
-            text-align: right; /* Aligns the button to the right */
-            margin-bottom: 20px; /* Adds some space below the button */
+            text-align: right;
+            /* Aligns the button to the right */
+            margin-bottom: 20px;
+            /* Adds some space below the button */
         }
+
         .button-container button {
-            background-color: #007bff; /* Blue color for the new button */
+            background-color: #007bff;
+            /* Blue color for the new button */
         }
+
         .button-container button:hover {
-            background-color: #0069d9; /* Darker blue on hover */
+            background-color: #0069d9;
+            /* Darker blue on hover */
         }
-     
+
         .floating-form-container {
-    position: fixed; /* or absolute */
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: #fff;
-    padding: 20px;
+            position: fixed;
+            /* or absolute */
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #fff;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 500px;
+            max-width: 90%;
+            visibility: visible;
+            z-index: 1001;
+        }
+
+        .floating-form-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .close-btn {
+            cursor: pointer;
+            border: none;
+            background-color: transparent;
+            font-size: 20px;
+            padding: 5px;
+        }
+
+        #curriculum-table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+#curriculum-table th, #curriculum-table td {
     border: 1px solid #ddd;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    width: 500px;
-    max-width: 90%;
-    visibility: visible;
-    z-index: 1001;
+    padding: 10px;
+    text-align: left;
 }
 
-.floating-form-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+#curriculum-table th {
+    background-color: #f0f0f0;
 }
 
-.close-btn {
-    cursor: pointer;
-    border: none;
-    background-color: transparent;
-    font-size: 20px;
-    padding: 5px;
+#curriculum-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+#curriculum-table tr:hover {
+    background-color: #f2f2f2;
+}
+
+#subjects-table-container {
+    margin-top: 20px;
+}
+
+#subjects-table-container table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+#subjects-table-container th, #subjects-table-container td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+}
+
+#subjects-table-container th {
+    background-color: #f0f0f0;
+}
+
+#subjects-table-container tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+#subjects-table-container tr:hover {
+    background-color: #f2f2f2;
 }
     </style>
 </head>
+
 <body>
     <h1>Admin Panel</h1>
 
@@ -293,132 +487,119 @@ document.getElementById('set-max-units').addEventListener('click', async (e) => 
         <button onclick="window.location.href='admin_students.html'">Manage Students</button>
     </div>
 
-<!-- Create Curriculum Section -->
-<h2>Create Curriculum</h2>
-<form id="curriculum-form">
-    <label for="curriculum-Code">Curriculum Code:</label>
-    <input type="text" id="curriculum-Code" required />
+    <!-- Create Curriculum Section -->
+    <h2>Create Curriculum</h2>
+    <form id="curriculum-form">
+        <label for="curriculum-Code">Curriculum Code:</label>
+        <input type="text" id="curriculum-Code" required />
 
-    <label for="curriculum-name">Curriculum Name:</label>
-    <input type="text" id="curriculum-name" required />
+        <label for="curriculum-name">Curriculum Name:</label>
+        <input type="text" id="curriculum-name" required />
 
-    <label for="curriculum-title">Curriculum Title:</label>
-    <input type="text" id="curriculum-title" required />
+        <label for="curriculum-title">Curriculum Title:</label>
+        <input type="text" id="curriculum-title" required />
 
-    <label for="curriculum-course">Course:</label>
-    <select id="curriculum-course" required>
-        <option value="">Select Course</option>
-        <!-- dynamically populate options from existing courses -->
-        <option value="BSIT">BSIT</option>
-        <option value="BSCS">BSCS</option>
-        <!-- ... -->
-        <option value="other">Other (please specify)</option>
-    </select>
-    <input type="text" id="curriculum-course-other" placeholder="Specify course" style="display:none;" />
+        <label for="curriculum-course">Course:</label>
+        <select id="curriculum-course" required>
+            <option value="">Select Course</option>
+            <!-- dynamically populate options from existing courses -->
+        </select>
+        <input type="text" id="curriculum-course-other" placeholder="Specify course" style="display:none;" />
+        <button id="add-course-btn">Add New Course</button>
+        <button type="button" id="save-course-btn">Save</button>
+            <button id="cancel-course-btn">Cancel</button>
 
-    <label for="curriculum-eduyear">Educational Year:</label>
-    <label for="curriculum-start-year">From:</label>
-    <select id="curriculum-start-year" required>
-        <option value="">Select Year</option>
-        <option value="2022">2022</option>
-        <option value="2023">2023</option>
-        <option value="2024">2024</option>
-        <!-- ... -->
-    </select>
-    <label for="curriculum-end-year">To:</label>
-    <select id="curriculum-end-year" required>
-        <option value="">Select Year</option>
-        <option value="2022">2022</option>
-        <option value="2023">2023</option>
-        <option value="2024">2024</option>
-        <!-- ... -->
-    </select>
-
-    <button type="button" id="show-add-subject-form">Create Curriculum</button>
-</form>
-
-<h2>Add subject to Curriculum</h2>
-<div id="add-subject-section">
-    <div id="add-subject-form-container" >
-        <form id="subject-form">
-            <label for="subject-curriculum-id">Curriculum:</label>
-            <select id="subject-curriculum-id" class="curriculum-dropdown" required></select>
-
-            <label for="subject-year">Year:</label>
-            <select id="subject-year" required>
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-            </select>
-
-            <label for="subject-semester">Semester:</label>
-            <select id="subject-semester" required>
-                <option value="1">1</option>
-                <option value="2">2</option>
-            </select>
-
-            <label for="subject-id">Subject ID:</label>
-            <input type="text" id="subject-id" required />
-
-            <label for="subject-name">Subject Name:</label>
-            <input type="text" id="subject-name" required />
-
-            <label for="subject-prerequisites">Prerequisites (comma-separated):</label>
-            <input type="text" id="subject-prerequisites" />
-
-            <label for="subject-lec">LEC :</label>
-            <input type="text" id="subject-lec" />
-
-            <label for="subject-lab-unit">Lab Unit :</label>
-            <input type="text" id="subject-lab-unit" />
-
-            <label for="subject-total-units">Total Units:</label>  <!-- this should be automatic and not editable it should add the LEC + Lab Unit and show that to the total Units field -->
-            <input type="number" id="total-units" min="1" required />
-
-            <button type="submit" id="add-subject">Add Subject</button>
-            <button type="button" id="close-add-subject">Cancel</button>
-        </form>
-    </div>
-</div>
-    <!-- Delete Subject Section 
-    <h2>Delete Subject</h2>
-    <form id="delete-subject-form">
-        <label for="delete-subject-course-id">Course:</label>
-        <select id="delete-subject-course-id" class="course-dropdown" required></select>
-
-        <label for="delete-subject-id">Subject ID:</label>
-        <input type="text" id="delete-subject-id" required />
-
-        <button type="submit" id="delete-subject">Delete Subject</button>
-    </form>
-
-     Set Maximum Units Section 
-    <h2>Set Maximum Units</h2>
-    <form id="max-units-form">
-        <label for="max-units-course-id">Course:</label>
-        <select id="max-units-course-id" class="course-dropdown" required></select>
-
-        <label for="max-units-year">Year:</label>
-        <select id="max-units-year" required>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
+       
+        <label for="curriculum-eduyear">Educational Year:</label>
+        <label for="curriculum-start-year">From:</label>
+        <select id="curriculum-start-year" required>
+            <option value="">Select Year</option>
+            <option value="2022">2022</option>
+            <option value="2023">2023</option>
+            <option value="2024">2024</option>
+            <!-- ... -->
+        </select>
+        <label for="curriculum-end-year">To:</label>
+        <select id="curriculum-end-year" required>
+            <option value="">Select Year</option>
+            <option value="2022">2022</option>
+            <option value="2023">2023</option>
+            <option value="2024">2024</option>
+            <!-- ... -->
         </select>
 
-        <label for="max-units-semester">Semester:</label>
-        <select id="max-units-semester" required>
-            <option value="1">1</option>
-            <option value="2">2</option>
-        </select>
-
-        <label for="max-units">Maximum Units:</label>
-        <input type="number" id="max-units" min="1" required />
-
-        <button type="submit" id="set-max-units">Set Maximum Units</button>
+        <button type="button" id="show-add-subject-form">Create Curriculum</button>
     </form>
-    -->
-   
+
+    <h2>Add subject to Curriculum</h2>
+    <div id="add-subject-section">
+        <div id="add-subject-form-container">
+            <form id="subject-form">
+                <label for="subject-curriculum-id">Curriculum:</label>
+                <select id="subject-curriculum-id" class="curriculum-dropdown" required></select>
+
+                <label for="subject-year">Year:</label>
+                <select id="subject-year" required>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                </select>
+
+                <label for="subject-semester">Semester:</label>
+                <select id="subject-semester" required>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                </select>
+
+                <label for="subject-id">Subject ID:</label>
+                <input type="text" id="subject-id" required />
+
+                <label for="subject-name">Subject Name:</label>
+                <input type="text" id="subject-name" required />
+
+                <label for="subject-prerequisites">Prerequisites (comma-separated):</label>
+                <input type="text" id="subject-prerequisites" />
+
+                <label for="subject-lec">LEC :</label>
+                <input type="text" id="subject-lec" />
+
+                <label for="subject-lab-unit">Lab Unit :</label>
+                <input type="text" id="subject-lab-unit" />
+
+                <label for="subject-total-units">Total Units:</label>
+                <!-- this should be automatic and not editable it should add the LEC + Lab Unit and show that to the total Units field -->
+                <input type="number" id="total-units" min="1" required />
+
+                <button type="submit" id="add-subject">Add Subject</button>
+                <button type="button" id="close-add-subject">Cancel</button>
+            </form>
+            <div>
+                <h2>Curriculum Module</h2>
+                <div id="curriculum-module">
+                    <div id="subjects-table-container"></div>
+                    <div id="search-curriculum">
+                        <input type="search" id="search-curriculum-input" placeholder="Search Curriculum...">
+                    </div>
+                    <div id="curriculum-table-container">
+                        <table id="curriculum-table">
+                            <thead>
+                                <tr>
+                                    <th>Curriculum ID</th>
+                                    <th>Curriculum Name</th>
+                                    <th>Course</th>
+                                    <th>Year</th>
+                                    <th>Semester</th>
+                                    <th>Subjects</th>
+                                </tr>
+                            </thead>
+                            <tbody id="curriculum-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+<script src="script.js"></script>
 </body>
+
 </html>
