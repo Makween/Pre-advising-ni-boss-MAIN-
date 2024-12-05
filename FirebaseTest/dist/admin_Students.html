@@ -5,103 +5,113 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel - Students</title>
     <style>
-        body {
-            font-family: Arial, sans-serif; 
-            margin: 20px;
-            background-color: #f4f4f4;
-        }
+        bodybody {
+  font-family: Arial, sans-serif;
+  margin: 20px;
+  background-color: #f4f4f4;
+}
 
-        h1, h2 {
-            color: #333;
-        }
+h1, h2 {
+  color: #333;
+}
 
-        form {
-            background: white;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-        }
+form {
+  background: white;
+  padding: 20px;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
 
-        select, input[type="text"], input[type="checkbox"] {
-            margin: 10px 0;
-            font-size: 16px;
-            padding: 10px;
-            width: 100%;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
+select, input[type="text"], input[type="checkbox"], input[type="number"] {
+  margin: 10px 0;
+  font-size: 16px;
+  padding: 10px;
+  width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
 
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            width: 100%;
-        }
+button {
+  padding: 10px 20px;
+  font-size: 16px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 100%;
+}
 
-        button:hover {
-            background-color: #45a049;
-        }
+button:hover {
+  background-color: #45a049;
+}
 
-        .subjects-container {
-            display: flex;
-            justify-content: space-between;
-            margin: 10px 0;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background: #fafafa;
-        }
+.subjects-container {
+  display: flex;
+  justify-content: space-between;
+  margin: 10px 0;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fafafa;
+}
 
-        .checkbox-container {
-            display: flex;
-            flex-direction: column;
-            margin: 10px;
-            width: 100%;
-        }
+.checkbox-container {
+  display: flex;
+  flex-direction: column;
+  margin: 10px;
+  width: 100%;
+}
 
-        .checkbox-item {
-            display: flex;
-            align-items: center;
-            margin: 5px 0;
-            padding: 5px 0;
-        }
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  margin: 5px 0;
+  padding: 5px 0;
+}
 
-        input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
-            margin-right: 10px;
-            cursor: pointer;
-        }
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin-right: 10px;
+  cursor: pointer;
+}
 
-        @media (max-width: 600px) {
-            .checkbox-container {
-                width: 100%;
-            }
-        }
+@media (max-width: 600px) {
+  .checkbox-container {
+    width: 100%;
+  }
+}
 
-        .subject-list {
-            flex: 1;
-            margin: 0 10px;
-        }
+.subject-list {
+  flex: 1;
+  margin: 0 10px;
+}
 
-        .flex-container {
-            display: flex;
-            justify-content: space-between;
-        }
+.flex-container {
+  display: flex;
+  justify-content: space-between;
+}
 
-        .subject-column {
-            flex: 1;
-            margin-right: 20px;
-        }
+.subject-column {
+  flex: 1;
+  margin-right: 20px;
+}
 
-        .subject-column:last-child {
-            margin-right: 0;
-        }
+.subject-column:last-child {
+  margin-right: 0;
+}
+
+.academic-year-container {
+  display: flex;
+  justify-content: space-between;
+  margin: 10px 0;
+}
+
+.academic-year-input {
+  width: 45%;
+}
     </style>
 
     <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-app.js"></script>
@@ -121,271 +131,138 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // Load courses from Firestore and populate the dropdowns
-        function loadCourses() {
-            db.collection('courses').get().then(snapshot => {
-                const courseDropdowns = document.querySelectorAll('#student-course, #enrollment-course');
-                courseDropdowns.forEach(dropdown => dropdown.innerHTML = '<option value="" disabled selected>Select a course</option>');
-
-                snapshot.forEach(doc => {
-                    const option = document.createElement('option');
-                    option.text = doc.data().courseName;
-                    option.value = doc.id;
-                    courseDropdowns.forEach(dropdown => dropdown.add(option.cloneNode(true)));
-                });
-            }).catch(error => console.error("Error loading courses: ", error));
-        }
-
-        // Fetch subjects based on selected course
-        function fetchSubjects(courseId) {
-            return db.collection('courses').doc(courseId).get().then(doc => {
-                if (doc.exists) {
-                    return doc.data().subjects;
-                } else {
-                    console.error('No such course document exists!');
-                    return [];
-                }
-            }).catch(error => {
-                console.error('Error fetching course data: ', error);
-                return [];
-            });
-        }
-
-        // Load and filter subjects based on year and semester
-        async function filterSubjects() {
-            const courseId = document.getElementById("enrollment-course").value;
-            const yearLevel = document.getElementById("enrollment-year-level").value;
-            const semester = document.getElementById("enrollment-semester").value;
-
-            if (!courseId || !yearLevel || !semester) {
-                return;
-            }
-
-            const subjectsMap = await fetchSubjects(courseId);
-            const enrolledContainer = document.getElementById("enrollment-subjects");
-            const failedContainer = document.getElementById("enrollment-failed-subjects");
-
-            enrolledContainer.innerHTML = '<h3>Enrolled Subjects</h3>';
-            failedContainer.innerHTML = '<h3>Failed Subjects</h3>';
-
-            const subjectsArray = subjectsMap[yearLevel]?.[semester] || [];
-
-            // Populate Enrolled and Failed subjects checkboxes
-            subjectsArray.forEach(subject => {
-                const enrolledCheckbox = document.createElement("div");
-                enrolledCheckbox.className = "checkbox-item";
-                enrolledCheckbox.innerHTML = `<input type="checkbox" value="${subject.subjectId}" id="enrolled-${subject.subjectId}"> 
-                                              <label for="enrolled-${subject.subjectId}">${subject.subjectName}</label>`;
-                enrolledContainer.appendChild(enrolledCheckbox);
-
-                const failedCheckbox = document.createElement("div");
-                failedCheckbox.className = "checkbox-item";
-                failedCheckbox.innerHTML = `<input type="checkbox" value="${subject.subjectId}" id="failed-${subject.subjectId}"> 
-                                            <label for="failed-${subject.subjectId}">${subject.subjectName}</label>`;
-                failedContainer.appendChild(failedCheckbox);
-            });
-        }
-
-        // Add Student Function
-        async function addStudent() {
-            const course = document.getElementById('student-course').value;
-            const studentId = document.getElementById('student-id').value;
-            const name = document.getElementById('student-name').value;
-            const year = document.getElementById('student-year').value;
-            const semester = document.getElementById('student-semester').value;
-            const status = document.getElementById('student-status').value;
-
-            const studentRef = db.collection('Students').doc(course).collection('StudentData').doc(studentId);
-            const studentDoc = await studentRef.get();
-
-            if (studentDoc.exists) {
-                const existingStudent = studentDoc.data();
-                const confirmMessage = `The Student ID ${studentId} already exists.\n\nDetails:\n- Name: ${existingStudent.name}\n- Course: ${course}\n- Year Level: ${existingStudent.year}\n- Semester: ${existingStudent.semester}\n- Status: ${existingStudent.status}\n\nDo you want to update this student's information?`;
-
-                if (!confirm(confirmMessage)) {
-                    document.getElementById('add-student-form').reset();
-                    return;
-                }
-            }
-
-            if (!confirm(`Are you sure you want to add the student with ID: ${studentId}?`)) {
-                return;
-            }
-
-            // Add or update the student
-            studentRef.set({
-                name: name,
-                year: year,
-                semester: semester,
-                status: status,
-                studentId: studentId
-            })
-            .then(() => {
-                alert("Student added/updated successfully!");
-                document.getElementById('add-student-form').reset();
-            })
-            .catch(error => {
-                console.error("Error adding/updating student: ", error);
-            });
-        }
-
-    // Add Enrollment Function
-async function addEnrollment() {
-    const studentId = document.getElementById('enrollment-student-id').value;
-    const course = document.getElementById('enrollment-course').value;
-    const yearLevel = document.getElementById('enrollment-year-level').value;
-    const semester = document.getElementById('enrollment-semester').value;
-
-    const enrollmentRef = db.collection('Enrollments').doc(course).collection('EnrollmentData').doc(studentId);
-
-    // Check if student exists
-    const studentDoc = await db.collection('Students').doc(course).collection('StudentData').doc(studentId).get();
-    if (!studentDoc.exists) {
-        alert("Student ID does not exist!");
-        return;
-    }
-
-    // Log student existence
-    console.log("Student found:", studentDoc.data());
-
-    // Fetch existing enrollment data
-    const enrollmentSnapshot = await enrollmentRef.get();
-    const enrollmentData = enrollmentSnapshot.exists ? enrollmentSnapshot.data() : {};
-    
-    // Log existing enrollment data
-    console.log("Fetched enrollment data:", enrollmentData);
-
-    const enrolledSubjects = enrollmentData.enrolledSubject || {};
-    const failedSubjects = enrollmentData.failedSubject || {};
-    const passedSubjects = enrollmentData.passedSubject || {}; // Preserving the passedSubjects data
-    const rolloverSubjects = enrollmentData.rolloverSubjects || {};
-
-    // Log existing passed subjects for debugging
-    console.log("Existing passed subjects:", passedSubjects);
-
-    // Prepare new subjects to add
-    if (!enrolledSubjects[yearLevel]) enrolledSubjects[yearLevel] = {};
-    if (!enrolledSubjects[yearLevel][semester]) enrolledSubjects[yearLevel][semester] = [];
-
-    // Add enrolled subjects
-    const enrolledCheckboxes = document.querySelectorAll('#enrollment-subjects input[type="checkbox"]:checked');
-    enrolledCheckboxes.forEach(checkbox => {
-        if (!enrolledSubjects[yearLevel][semester].includes(checkbox.value)) {
-            enrolledSubjects[yearLevel][semester].push(checkbox.value);
-        }
+     // Load courses from Firestore and populate the dropdown
+async function loadCourses() {
+  const courseDropdown = document.getElementById('student-course');
+  courseDropdown.innerHTML = '<option value="" disabled selected>Select a course</option>';
+  
+  db.collection('Curriculum').get().then(snapshot => {
+    snapshot.forEach(doc => {
+      const option = document.createElement('option');
+      option.text = doc.data().curriculumCourse;
+      option.value = doc.id;
+      courseDropdown.add(option);
     });
-
-    // Add failed subjects
-    const failedCheckboxes = document.querySelectorAll('#enrollment-failed-subjects input[type="checkbox"]:checked');
-    failedCheckboxes.forEach(checkbox => {
-        if (!failedSubjects[yearLevel]) failedSubjects[yearLevel] = {};
-        if (!failedSubjects[yearLevel][semester]) failedSubjects[yearLevel][semester] = [];
-        if (!failedSubjects[yearLevel][semester].includes(checkbox.value)) {
-            failedSubjects[yearLevel][semester].push(checkbox.value);
-        }
-    });
-
-    // Log data before updating
-    console.log("Data before update:", {
-        enrolledSubjects,
-        failedSubjects,
-        passedSubjects,
-        rolloverSubjects
-    });
-
-    // Now, we'll try to preserve passedSubjects and rolloverSubjects by updating only the necessary parts
-    try {
-        await enrollmentRef.set({
-            enrolledSubject: enrolledSubjects,
-            failedSubject: failedSubjects,
-            passedSubject: passedSubjects,  // Preserve passed subjects by explicitly passing them
-            rolloverSubjects: rolloverSubjects  // Preserve rollover subjects
-        }, { merge: true });
-
-        alert("Enrollment added successfully!");
-        document.getElementById('add-enrollment-form').reset();
-    } catch (error) {
-        console.error("Error adding enrollment: ", error);
-        alert('Error adding enrollment, please try again.');
-    }
+  }).catch(error => console.error("Error loading courses: ", error));
 }
 
+// Load curriculum for selected course
+async function loadCurriculum() {
+  const course = document.getElementById('student-course').value;
+  const curriculumDropdown = document.getElementById('student-curriculum');
+  curriculumDropdown.innerHTML = '<option value="" disabled selected>Select a curriculum</option>';
+  
+  db.collection('Curriculum').doc(course).get().then(doc => {
+    if (doc.exists) {
+      const curriculumName = doc.data().curriculumName;
+      const option = document.createElement('option');
+      option.text = curriculumName;
+      option.value = curriculumName;
+      curriculumDropdown.add(option);
+    }
+  }).catch(error => console.error("Error loading curriculum: ", error));
+}
 
-        // Load courses on page load
-        window.onload = loadCourses;
+// Add Student Function
+async function addStudent(event) {
+  event.preventDefault();
+  console.log("Adding student...");
+  const course = document.getElementById('student-course').value;
+  const curriculum = document.getElementById('student-curriculum').value;
+  const studentId = document.getElementById('student-id').value;
+  const name = document.getElementById('student-name').value;
+  const status = document.getElementById('student-status').value;
+  const year = document.getElementById('student-year').value;
+  const academicYearStart = document.getElementById('academic-year-start').value;
+  const academicYearEnd = document.getElementById('academic-year-end').value;
+
+  const studentRef = db.collection('curriculum').doc(course).collection('students').doc(studentId);
+  const studentDoc = await studentRef.get();
+
+  if (studentDoc.exists) {
+    const existingStudent = studentDoc.data();
+    const confirmMessage = `The Student ID ${studentId} already exists.\n\nDetails:\n- Name: ${existingStudent.name}\n- Course: ${course}\n- Curriculum: ${curriculum}\n- Year Level: ${existingStudent.year}\n- Status: ${existingStudent.status}\n- Academic Year: ${existingStudent.academicYearStart}-${existingStudent.academicYearEnd}\n\nDo you want to update this student's information?`;
+
+    if (!confirm(confirmMessage)) {
+      document.getElementById('add-student-form').reset();
+      return;
+    }
+  }
+
+  if (!confirm(`Are you sure you want to add the student with ID: ${studentId}?`)) {
+    return;
+  }
+
+  // Add or update the student
+  studentRef.set({
+    name: name,
+    course: course,
+    curriculum: curriculum,
+    status: status,
+    year: year,
+    academicYearStart: academicYearStart,
+    academicYearEnd: academicYearEnd,
+  })
+  .then(() => {
+    console.log("Student added/updated successfully!");
+    alert("Student added/updated successfully!");
+    document.getElementById('add-student-form').reset();
+  })
+  .catch(error => console.error("Error adding/updating student: ", error));
+}
+
+// Load event listeners
+window.onload = function() {
+  console.log("Window loaded. Initializing...");
+  loadCourses();
+  document.getElementById('student-course').addEventListener('change', loadCurriculum);
+  document.getElementById('add-student-form').addEventListener('submit', addStudent);
+}
     </script>
 </head>
 <body>
-    <h1>Admin Panel</h1>
+    <h1>Admin Panel for Students</h1>
 
     <form id="add-student-form" onsubmit="addStudent(); return false;">
-        <h2>Add Student</h2>
-        <label for="student-course">Course:</label>
-        <select id="student-course" required></select>
-
-        <label for="student-id">Student ID:</label>
-        <input type="text" id="student-id" required>
-
-        <label for="student-name">Name:</label>
-        <input type="text" id="student-name" required>
-
-        <label for="student-year">Year Level:</label>
-        <select id="student-year" required>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-        </select>
-
-        <label for="student-semester">Semester:</label>
-        <select id="student-semester" required>
-            <option value="1">1</option>
-            <option value="2">2</option>
-        </select>
-
-        <label for="student-status">Status:</label>
-        <select id="student-status" required>
-            <option value="Regular">Regular</option>
-            <option value="Irregular">Irregular</option>
-        </select>
-
-        <button type="submit">Add Student</button>
+      <h2>Student Module</h2>
+      
+      <label for="student-course">Course:</label>
+      <select id="student-course" required></select>
+      
+      <label for="student-curriculum">Curriculum:</label>
+      <select id="student-curriculum" required></select>
+      
+      <label for="student-id">Student ID:</label>
+      <input type="text" id="student-id" required>
+      
+      <label for="student-name">Name (Last Name, First Name, Middle Name):</label>
+      <input type="text" id="student-name" required>
+      
+      <label for="student-status">Status:</label>
+      <select id="student-status" required>
+        <option value="Regular">Regular</option>
+        <option value="Irregular">Irregular</option>
+      </select>
+      
+      <label for="student-year">Year Level:</label>
+      <select id="student-year" required>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+      </select>
+      
+      <div class="academic-year-container">
+        <label for="academic-year-start">Academic Year (Start):</label>
+        <input type="number" id="academic-year-start" class="academic-year-input" required>
+        
+        <label for="academic-year-end">Academic Year (End):</label>
+        <input type="number" id="academic-year-end" class="academic-year-input" required>
+      </div>
+      
+      <button type="submit">Add Student</button>
     </form>
 
-    <form id="add-enrollment-form" onsubmit="addEnrollment(); return false;">
-        <h2>Add Enrollment</h2>
-        <label for="enrollment-course">Course:</label>
-        <select id="enrollment-course" onchange="filterSubjects();" required></select>
-
-        <label for="enrollment-student-id">Student ID:</label>
-        <input type="text" id="enrollment-student-id" required>
-
-        <label for="enrollment-year-level">Year Level:</label>
-        <select id="enrollment-year-level" onchange="filterSubjects();" required>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-        </select>
-
-        <label for="enrollment-semester">Semester:</label>
-        <select id="enrollment-semester" onchange="filterSubjects();" required>
-            <option value="1">1</option>
-            <option value="2">2</option>
-        </select>
-
-        <div class="subjects-container flex-container">
-            <div class="subject-column">
-                
-                <div id="enrollment-subjects" class="checkbox-container"></div>
-            </div>
-            <div class="subject-column">
-               
-                <div id="enrollment-failed-subjects" class="checkbox-container"></div>
-            </div>
-        </div>
-
-        <button type="submit">Add Enrollment</button>
-    </form>
+    
 </body>
 </html>

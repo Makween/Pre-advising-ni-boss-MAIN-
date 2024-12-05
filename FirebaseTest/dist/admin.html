@@ -171,58 +171,65 @@
                     alert('Error adding/updating curriculum: ' + error.message);
                 }
             });
+            
         // Add Subject Functionality
         document.getElementById('add-subject').addEventListener('click', async (e) => {
-            e.preventDefault();
-            const curriculumId = document.getElementById('subject-curriculum-id').value;
-            const year = document.getElementById('subject-year').value;
-            const semester = document.getElementById('subject-semester').value;
-            const subjectId = document.getElementById('subject-id').value;
-            const subjectName = document.getElementById('subject-name').value;
-            const prerequisites = document.getElementById('subject-prerequisites').value.split(',');
-            const lec = document.getElementById('subject-lec').value;
-            const labUnit = document.getElementById('subject-lab-unit').value;
-            const totalUnits = parseInt(lec) + parseInt(labUnit);
+  e.preventDefault();
+  const curriculumId = document.getElementById('subject-curriculum-id').value;
+  const year = document.getElementById('subject-year').value;
+  const semester = document.getElementById('subject-semester').value;
+  const subjectId = document.getElementById('subject-id').value;
+  const subjectName = document.getElementById('subject-name').value;
+  const prerequisites = document.getElementById('subject-prerequisites').value.split(',');
+  const lec = document.getElementById('subject-lec').value;
+  const labUnit = document.getElementById('subject-lab-unit').value;
+  const totalUnits = parseInt(lec) + parseInt(labUnit);
 
-            // Automatically calculate total units
-            document.getElementById('total-units').value = totalUnits;
+  // Automatically calculate total units
+  document.getElementById('total-units').value = totalUnits;
 
-            try {
-                const curriculumRef = doc(db, 'Curriculum', curriculumId);
-                const curriculumSnapshot = await getDoc(curriculumRef);
+  try {
+    const curriculumRef = doc(db, 'Curriculum', curriculumId);
+    const curriculumSnapshot = await getDoc(curriculumRef);
 
-                if (curriculumSnapshot.exists()) {
-                    const existingData = curriculumSnapshot.data();
-                    const existingSubjects = existingData.subjects || {};
+    if (curriculumSnapshot.exists()) {
+      const existingData = curriculumSnapshot.data();
+      const isFinalized = existingData.finalized;
 
-                    // Add new subject
-                    if (!existingSubjects[year]) {
-                        existingSubjects[year] = {};
-                    }
-                    if (!existingSubjects[year][semester]) {
-                        existingSubjects[year][semester] = [];
-                    }
-                    existingSubjects[year][semester].push({
-                        subjectId,
-                        subjectName,
-                        prerequisites,
-                        lec,
-                        labUnit,
-                        totalUnits
-                    });
+      if (!isFinalized) {
+        const existingSubjects = existingData.subjects || {};
 
-                    // Update Firestore with the modified subjects
-                    await setDoc(curriculumRef, { subjects: existingSubjects }, { merge: true });
-                    alert('Subject added successfully!');
-                    document.getElementById('subject-form').reset(); // Reset form after submission
-                } else {
-                    alert('Curriculum does not exist.');
-                }
-            } catch (error) {
-                console.error('Error adding subject:', error);
-                alert('Error adding subject: ' + error.message);
-            }
+        // Add new subject
+        if (!existingSubjects[year]) {
+          existingSubjects[year] = {};
+        }
+        if (!existingSubjects[year][semester]) {
+          existingSubjects[year][semester] = [];
+        }
+        existingSubjects[year][semester].push({
+          subjectId,
+          subjectName,
+          prerequisites,
+          lec,
+          labUnit,
+          totalUnits
         });
+
+        // Update Firestore with the modified subjects
+        await setDoc(curriculumRef, { subjects: existingSubjects }, { merge: true });
+        alert('Subject added successfully!');
+        document.getElementById('subject-form').reset(); // Reset form after submission
+      } else {
+        alert('Cannot add subjects to finalized curriculum.');
+      }
+    } else {
+      alert('Curriculum does not exist.');
+    }
+  } catch (error) {
+    console.error('Error adding subject:', error);
+    alert('Error adding subject: ' + error.message);
+  }
+});
 
        // Search Curriculum Functionality
 document.getElementById('search-curriculum-input').addEventListener('input', async (e) => {
@@ -263,6 +270,7 @@ document.getElementById('search-curriculum-input').addEventListener('input', asy
                 <td>${curriculum.semester}</td>
                 <td>
                     <button class="view-subjects-btn" data-curriculum-id="${curriculum.curriculumId}">View Subjects</button>
+                    <button id="finalize-curriculum-btn" style="background-color: #4CAF50; color: #fff; border: none; border-radius: 5px; cursor: pointer;">Finalize Curriculum</button>
                 </td>
             `;
             curriculumTableBody.appendChild(row);
@@ -271,6 +279,8 @@ document.getElementById('search-curriculum-input').addEventListener('input', asy
         console.error('Error searching curriculum:', error);
     }
 });
+
+
 
 // View Subjects Functionality
 document.addEventListener('click', async (e) => {
@@ -368,6 +378,117 @@ if (viewSubjectBtn) {
     console.log('View subject button not found');
 }
 
+window.addEventListener('DOMContentLoaded', () => {
+  // Finalize curriculum button event listener
+  const finalizeBtn = document.getElementById('finalize-curriculum-btn');
+  
+  if (finalizeBtn) {
+    finalizeBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      
+      // Confirm finalize action
+      const confirmFinalize = confirm('Are you sure you want to finalize the curriculum? This will lock all subjects and prevent further changes.');
+      
+      if (confirmFinalize) {
+        try {
+          // Lock curriculum logic here
+          await lockCurriculum();
+          alert('Curriculum finalized successfully!');
+          // Disable add/update buttons
+          document.getElementById('add-subject-btn').disabled = true;
+          document.getElementById('update-subject-btn').disabled = true;
+        } catch (error) {
+          console.error('Error finalizing curriculum:', error);
+          alert('Error finalizing curriculum: ' + error.message);
+        }
+      }
+    });
+  } else {
+    console.error('Finalize button not found.');
+  }
+  
+  // Lock curriculum function
+  async function lockCurriculum() {
+    const curriculumId = getCurriculumId();
+    const curriculumRef = doc(db, 'Curriculum', curriculumId);
+    await updateDoc(curriculumRef, { finalized: true });
+  }
+});
+
+// Search Curriculum Functionality
+document.getElementById('search-curriculum-input').addEventListener('input', async (e) => {
+  try {
+    const searchQuery = e.target.value.toLowerCase();
+    const curriculumColRef = collection(db, 'Curriculum');
+    const curriculumSnapshot = await getDocs(curriculumColRef);
+    const curriculumOptions = [];
+    
+    curriculumSnapshot.forEach((doc) => {
+      const curriculumData = doc.data();
+      const curriculumName = curriculumData.curriculumName.toLowerCase();
+      const curriculumId = doc.id;
+      
+      if (curriculumName.includes(searchQuery)) {
+        curriculumOptions.push({
+          curriculumId,
+          curriculumName,
+          course: curriculumData.curriculumCourse,
+          year: curriculumData.curriculumStartYear,
+          semester: curriculumData.curriculumEndYear,
+          subjects: curriculumData.subjects,
+        });
+      }
+    });
+    
+    // Display Curriculum Options
+    const curriculumTableBody = document.getElementById('curriculum-table-body');
+    curriculumTableBody.innerHTML = '';
+    
+    curriculumOptions.forEach((curriculum) => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${curriculum.curriculumId}</td>
+        <td>${curriculum.curriculumName}</td>
+        <td>${curriculum.course}</td>
+        <td>${curriculum.year}</td>
+        <td>${curriculum.semester}</td>
+        <td>
+          <button class="view-subjects-btn" data-curriculum-id="${curriculum.curriculumId}">View Subjects</button>
+          <button class="finalize-curriculum-btn" data-curriculum-id="${curriculum.curriculumId}">Finalize Curriculum</button>
+        </td>
+      `;
+      curriculumTableBody.appendChild(row);
+    });
+    
+    // Dynamic finalize button event listener
+    const finalizeButtons = document.querySelectorAll('.finalize-curriculum-btn');
+    
+    finalizeButtons.forEach((button) => {
+      button.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const curriculumId = e.target.dataset.curriculumId;
+        const confirmFinalize = confirm('Are you sure?');
+        
+        if (confirmFinalize) {
+          try {
+            await lockCurriculum(curriculumId);
+            alert('Curriculum finalized!');
+          } catch (error) {
+            console.error('Error finalizing curriculum:', error);
+          }
+        }
+      });
+    });
+  } catch (error) {
+    console.error('Error searching curriculum:', error);
+  }
+});
+
+// Lock curriculum function
+async function lockCurriculum(curriculumId) {
+  const curriculumRef = doc(db, 'Curriculum', curriculumId);
+  await updateDoc(curriculumRef, { finalized: true });
+}
 // Get the current year
 const currentYear = new Date().getFullYear();
 
@@ -610,18 +731,58 @@ getDocs(curriculumCollectionRef)
 
 // Add event listener to manual subject button
 document.getElementById('manual-subject-btn').addEventListener('click', (e) => {
-   
-    console.log('Manual subject button clicked');
-    document.getElementById('year').disabled = false;
-    document.getElementById('semester').disabled = false;
-    document.getElementById('subject-name').disabled = false;
-    document.getElementById('pre-req').disabled = false;
-    document.getElementById('lec').disabled = false;
-    document.getElementById('lab').disabled = false;
-    document.getElementById('total-units').disabled = false; // Also enable total units field
-    document.getElementById('manual-subject-btn').style.display = 'none'; // Hide the button
+  console.log('Manual subject button clicked');
+  
+  document.getElementById('floatingsubject-id').style.display = 'none';
+  document.getElementById('manual-subject-id-input').style.display = 'block';
+  document.getElementById('manual-subject-btn').style.display = 'none';
+  document.getElementById('cancel-manual-subject-btn').style.display = 'block';
+  
+  const elements = [
+    'floatingyear',
+    'floatingsemester',
+    'floatingsubject-name',
+    'floatingpre-req',
+    'floatinglec',
+    'floatinglab'
+  ];
+  
+  elements.forEach((id) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.disabled = false;
+    } else {
+      console.warn(`Element with ID '${id}' not found.`);
+    }
+  });
 });
 
+document.getElementById('cancel-manual-subject-btn').addEventListener('click', (e) => {
+  console.log('Cancel manual subject button clicked');
+  
+  document.getElementById('floatingsubject-id').style.display = 'block';
+  document.getElementById('manual-subject-id-input').style.display = 'none';
+  document.getElementById('manual-subject-btn').style.display = 'block';
+  document.getElementById('cancel-manual-subject-btn').style.display = 'none';
+  
+  const elements = [
+    'floatingyear',
+    'floatingsemester',
+    'floatingsubject-name',
+    'floatingpre-req',
+    'floatinglec',
+    'floatinglab'
+  ];
+  
+  elements.forEach((id) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.disabled = true;
+    } else {
+      console.warn(`Element with ID '${id}' not found.`);
+    }
+  });
+});
 // Add event listener for subject ID select element
 subjectIdSelect.addEventListener('change', async () => {
   console.log('Event listener executed');
@@ -698,8 +859,20 @@ subjectIdSelect.addEventListener('change', async () => {
 // Add event listener to the save subject button
 document.getElementById('save-subject-btn').addEventListener('click', async (e) => {
   e.preventDefault();
+  
+  let subjectId;
+  
+  const manualSubjectIdInput = document.getElementById('manual-subject-id-input');
+  const floatingSubjectIdSelect = document.getElementById('floatingsubject-id');
+  
+  if (manualSubjectIdInput.style.display === 'block') {
+    subjectId = manualSubjectIdInput.value;
+  } else {
+    subjectId = floatingSubjectIdSelect.value;
+  }
+  
   try {
-    const subjectData = await getSubjectData();
+    const subjectData = await getSubjectData(subjectId); // Pass subjectId
     await saveSubjectData(subjectData);
     await updateCurriculumContentTable();
   } catch (error) {
@@ -709,7 +882,7 @@ document.getElementById('save-subject-btn').addEventListener('click', async (e) 
 });
 
 // Get subject data from form inputs
-async function getSubjectData() {
+async function getSubjectData(subjectId) {
   console.log('Getting subject data...');
 
   const yearInput = document.getElementById('floatingyear');
@@ -728,15 +901,7 @@ async function getSubjectData() {
   }
   console.log('Semester:', semester);
 
-  const subjectIdInput = document.querySelector('#floatingsubject-id');
-  console.log('Subject ID input:', subjectIdInput);
-  const subjectId = subjectIdInput?.value;
-  if (subjectId === undefined || subjectId === null) {
-    throw new Error('Subject ID input value is missing');
-  }
-  console.log('Subject ID:', subjectId);
-
-  const subjectNameInput = document.querySelector('#floatingsubject-name');
+  const subjectNameInput = document.getElementById('floatingsubject-name');
   console.log('Subject name input:', subjectNameInput);
   const subjectName = subjectNameInput?.value;
   if (subjectName === undefined || subjectName === null) {
@@ -744,7 +909,7 @@ async function getSubjectData() {
   }
   console.log('Subject name:', subjectName);
 
-  const preReqInput = document.querySelector('#floatingpre-req');
+  const preReqInput = document.getElementById('floatingpre-req');
   console.log('Pre-req input:', preReqInput);
   const preReq = preReqInput?.value;
   if (preReq === undefined || preReq === null) {
@@ -752,7 +917,7 @@ async function getSubjectData() {
   }
   console.log('Pre-req:', preReq);
 
-  const lectureUnitsInput = document.querySelector('#floatinglec');
+  const lectureUnitsInput = document.getElementById('floatinglec');
   console.log('Lecture units input:', lectureUnitsInput);
   const lectureUnits = lectureUnitsInput?.value;
   if (lectureUnits === undefined || lectureUnits === null) {
@@ -760,7 +925,7 @@ async function getSubjectData() {
   }
   console.log('Lecture units:', lectureUnits);
 
-  const laboratoryUnitsInput = document.querySelector('#floatinglab');
+  const laboratoryUnitsInput = document.getElementById('floatinglab');
   console.log('Laboratory units input:', laboratoryUnitsInput);
   const laboratoryUnits = laboratoryUnitsInput?.value;
   if (laboratoryUnits === undefined || laboratoryUnits === null) {
@@ -771,12 +936,12 @@ async function getSubjectData() {
   const totalUnits = parseInt(lectureUnits) + parseInt(laboratoryUnits);
   console.log('Total units:', totalUnits);
 
-  document.getElementById('total-units').value = totalUnits; // Update total units input
+  document.getElementById('floatingtotal-units').value = totalUnits; // Update total units input
 
   return {
+    subjectId,
     year,
     semester,
-    subjectId,
     subjectName,
     preReq,
     lectureUnits,
@@ -792,45 +957,52 @@ async function saveSubjectData(subjectData) {
 
   if (curriculumSnapshot.exists()) {
     const existingData = curriculumSnapshot.data();
-    const existingSubjects = existingData.subjects || {};
+    const isFinalized = existingData.finalized;
 
-    // Check if subject already exists
-    let subjectExists = false;
-    if (existingSubjects[subjectData.year] && existingSubjects[subjectData.year][subjectData.semester === '1st Semester' ? '1' : '2']) {
-      existingSubjects[subjectData.year][subjectData.semester === '1st Semester' ? '1' : '2'].forEach((subject) => {
-        if (subject.subjectId === subjectData.subjectId) {
-          subjectExists = true;
+    if (!isFinalized) {
+      const existingSubjects = existingData.subjects || {};
+      let subjectExists = false;
+
+      // Check if subject already exists
+      if (existingSubjects[subjectData.year] && existingSubjects[subjectData.year][subjectData.semester === '1st Semester' ? '1' : '2']) {
+        existingSubjects[subjectData.year][subjectData.semester === '1st Semester' ? '1' : '2'].forEach((subject) => {
+          if (subject.subjectId === subjectData.subjectId) {
+            subjectExists = true;
+          }
+        });
+      }
+
+      if (!subjectExists) {
+        // Add new subject
+        if (!existingSubjects[subjectData.year]) {
+          existingSubjects[subjectData.year] = {};
         }
-      });
-    }
+        if (!existingSubjects[subjectData.year][subjectData.semester === '1st Semester' ? '1' : '2']) {
+          existingSubjects[subjectData.year][subjectData.semester === '1st Semester' ? '1' : '2'] = [];
+        }
+        existingSubjects[subjectData.year][subjectData.semester === '1st Semester' ? '1' : '2'].push({
+          subjectId: subjectData.subjectId,
+          subjectName: subjectData.subjectName,
+          preReq: subjectData.preReq === '' ? [''] : subjectData.preReq.split(','),
+          lec: subjectData.lectureUnits,
+          labUnit: subjectData.laboratoryUnits,
+          totalUnits: subjectData.totalUnits,
+        });
 
-    if (!subjectExists) {
-      // Add new subject
-      if (!existingSubjects[subjectData.year]) {
-        existingSubjects[subjectData.year] = {};
+        await setDoc(curriculumRef, { ...existingData, subjects: existingSubjects }, { merge: true });
+        alert('Subject added successfully!');
+      } else {
+        alert('Subject already exists!');
       }
-      if (!existingSubjects[subjectData.year][subjectData.semester === '1st Semester' ? '1' : '2']) {
-        existingSubjects[subjectData.year][subjectData.semester === '1st Semester' ? '1' : '2'] = [];
-      }
-      existingSubjects[subjectData.year][subjectData.semester === '1st Semester' ? '1' : '2'].push({
-        subjectId: subjectData.subjectId,
-        subjectName: subjectData.subjectName,
-        preReq: subjectData.preReq === '' ? [''] : subjectData.preReq.split(','),
-        lec: subjectData.lectureUnits,
-        labUnit: subjectData.laboratoryUnits,
-        totalUnits: subjectData.totalUnits,
-      });
-
-      // Update Firestore with the modified subjects
-      await setDoc(curriculumRef, { ...existingData, subjects: existingSubjects }, { merge: true });
-      alert('Subject added successfully!'); // Prompt when subject is successfully added
     } else {
-      alert('Subject already exists!'); // Prompt when subject already exists
+      alert('Cannot add subjects to finalized curriculum.');
+      throw new Error('Curriculum is finalized.');
     }
   } else {
     throw new Error('Curriculum does not exist.');
   }
 }
+
 
 // Update curriculum content table
 async function updateCurriculumContentTable() {
@@ -1240,7 +1412,9 @@ style="display: none; position: fixed; top: 50%; left: 50%; transform: translate
 <form id="add-subject-form-content">
     <label for="subject-id">Subject ID:</label>
     <select id="floatingsubject-id" name="floatingsubject-id"></select>
-    <button id="manual-subject-btn" type="button">Add Manual Subject</button><br><br>
+    <input type="text" id="manual-subject-id-input" name="manual-subject-id-input" style="display:none;">
+    <button id="manual-subject-btn" type="button">Add Manual Subject</button>
+    <button id="cancel-manual-subject-btn" type="button" style="display:none;">Cancel Manual Subject</button><br><br>
     <label for="year">Year:</label>
     <select id="floatingyear" name="floatingyear" disabled>
         <option value="1">1st Year</option>
