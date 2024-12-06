@@ -112,6 +112,26 @@ input[type="checkbox"] {
 .academic-year-input {
   width: 45%;
 }
+
+#options-form {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #fff;
+  padding: 20px;
+  border: 1px solid #ddd;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+  width: 500px;
+}
+
+.hidden {
+  display: none;
+}
+
+#options-form.show {
+  display: block;
+}
     </style>
 
     <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-app.js"></script>
@@ -131,137 +151,227 @@ input[type="checkbox"] {
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-     // Load courses from Firestore and populate the dropdown
-async function loadCourses() {
+    // Load courses and curriculum from Firestore
+async function loadCoursesAndCurriculum() {
   const courseDropdown = document.getElementById('student-course');
-  courseDropdown.innerHTML = '<option value="" disabled selected>Select a course</option>';
-  
-  db.collection('Curriculum').get().then(snapshot => {
-    snapshot.forEach(doc => {
-      const option = document.createElement('option');
-      option.text = doc.data().curriculumCourse;
-      option.value = doc.id;
-      courseDropdown.add(option);
-    });
-  }).catch(error => console.error("Error loading courses: ", error));
-}
-
-// Load curriculum for selected course
-async function loadCurriculum() {
-  const course = document.getElementById('student-course').value;
   const curriculumDropdown = document.getElementById('student-curriculum');
+
+  courseDropdown.innerHTML = '<option value="" disabled selected>Select a course</option>';
   curriculumDropdown.innerHTML = '<option value="" disabled selected>Select a curriculum</option>';
-  
-  db.collection('Curriculum').doc(course).get().then(doc => {
-    if (doc.exists) {
-      const curriculumName = doc.data().curriculumName;
-      const option = document.createElement('option');
-      option.text = curriculumName;
-      option.value = curriculumName;
-      curriculumDropdown.add(option);
-    }
-  }).catch(error => console.error("Error loading curriculum: ", error));
+
+  try {
+    const snapshot = await db.collection('Curriculum').get();
+    snapshot.forEach(doc => {
+      const courseOption = document.createElement('option');
+      courseOption.text = doc.data().curriculumCourse;
+      courseOption.value = doc.id; // Curriculum code is used as value
+      courseDropdown.add(courseOption);
+
+      const curriculumOption = document.createElement('option');
+      curriculumOption.value = doc.id; // Curriculum code is used as value
+      curriculumOption.textContent = doc.data().curriculumName; // Curriculum name is displayed
+      curriculumDropdown.add(curriculumOption);
+    });
+  } catch (error) {
+    console.error("Error loading courses and curriculum: ", error);
+  }
 }
 
-// Add Student Function
+// Global Variables for Student ID
+let studentIdFormat = '';
+let studentIdCounter = 0;
+
+// Function to Generate Student ID Based on Database
+async function generateStudentId() {
+  console.log("generateStudentId triggered"); // Debugging log
+  try {
+    const querySnapshot = await db.collectionGroup('StudentData').get(); // Fetch all student documents
+    const existingIds = querySnapshot.docs.map(doc => doc.id).filter(id => id.startsWith(studentIdFormat));
+
+    // Extract numeric part of IDs and find the max value
+    const maxId = existingIds
+      .map(id => parseInt(id.replace(studentIdFormat, ''), 10))
+      .filter(num => !isNaN(num))
+      .reduce((max, current) => Math.max(max, current), 0);
+
+    studentIdCounter = maxId + 1; // Increment from the highest ID found
+    const studentId = `${studentIdFormat}${String(studentIdCounter).padStart(4, '0')}`;
+    document.getElementById('student-id').value = studentId;
+
+    console.log('Generated Student ID:', studentId);
+  } catch (error) {
+    console.error('Error generating student ID:', error);
+  }
+}
+
+/// ADD STUDENT FUNCTION
 async function addStudent(event) {
+  console.log("addStudent function triggered"); // Debugging log
   event.preventDefault();
-  console.log("Adding student...");
-  const course = document.getElementById('student-course').value;
-  const curriculum = document.getElementById('student-curriculum').value;
-  const studentId = document.getElementById('student-id').value;
+  event.stopPropagation();
+
+  // Get the course name and curriculum code
+  const course = document.getElementById('student-course').value;  // This should be the course ID, which is stored in Firestore
+  const courseName = document.getElementById('student-course').options[document.getElementById('student-course').selectedIndex].text; // Get the course name text
+  const curriculumCode = document.getElementById('student-curriculum').value; // Get the curriculum code
+  const studentId = document.getElementById('student-id').value.trim();
   const name = document.getElementById('student-name').value;
   const status = document.getElementById('student-status').value;
   const year = document.getElementById('student-year').value;
   const academicYearStart = document.getElementById('academic-year-start').value;
   const academicYearEnd = document.getElementById('academic-year-end').value;
 
-  const studentRef = db.collection('curriculum').doc(course).collection('students').doc(studentId);
-  const studentDoc = await studentRef.get();
-
-  if (studentDoc.exists) {
-    const existingStudent = studentDoc.data();
-    const confirmMessage = `The Student ID ${studentId} already exists.\n\nDetails:\n- Name: ${existingStudent.name}\n- Course: ${course}\n- Curriculum: ${curriculum}\n- Year Level: ${existingStudent.year}\n- Status: ${existingStudent.status}\n- Academic Year: ${existingStudent.academicYearStart}-${existingStudent.academicYearEnd}\n\nDo you want to update this student's information?`;
-
-    if (!confirm(confirmMessage)) {
-      document.getElementById('add-student-form').reset();
-      return;
-    }
-  }
-
-  if (!confirm(`Are you sure you want to add the student with ID: ${studentId}?`)) {
+  if (!studentId) {
+    console.log('Missing student ID'); // Debugging log
+    alert('Student ID is missing. Please set the format first.');
     return;
   }
 
-  // Add or update the student
-  studentRef.set({
-    name: name,
-    course: course,
-    curriculum: curriculum,
-    status: status,
-    year: year,
-    academicYearStart: academicYearStart,
-    academicYearEnd: academicYearEnd,
-  })
-  .then(() => {
-    console.log("Student added/updated successfully!");
-    alert("Student added/updated successfully!");
+  if (!curriculumCode) {
+    console.log('Invalid curriculum code or missing data for curriculum: ', curriculumCode);
+    alert('Please select a valid curriculum.');
+    return;
+  }
+
+  const curriculumRef = db.collection('Curriculum').doc(curriculumCode);
+  const curriculumDoc = await curriculumRef.get();
+
+  if (!curriculumDoc.exists) {
+    console.log('Invalid curriculum code or missing data for curriculum: ', curriculumCode);
+    alert('Invalid curriculum selected.');
+    return;
+  }
+
+  const studentRef = db.collection('Students').doc(course).collection('StudentData').doc(studentId);
+
+  try {
+    await studentRef.set({
+      name: name,
+      course: courseName, // Save the course name, not the curriculum code
+      curriculum: curriculumCode, // Save the curriculum code
+      program: curriculumDoc.data().curriculumName, // Save the curriculum name for the program
+      status: status,
+      year: year,
+      academicYearStart: academicYearStart,
+      academicYearEnd: academicYearEnd,
+    });
+    console.log("Student added successfully!"); // Debugging log
+    alert("Student added successfully!");
     document.getElementById('add-student-form').reset();
-  })
-  .catch(error => console.error("Error adding/updating student: ", error));
+
+    // Generate the next Student ID
+    await generateStudentId();
+  } catch (error) {
+    console.error("Error adding student: ", error);
+  }
 }
 
-// Load event listeners
-window.onload = function() {
-  console.log("Window loaded. Initializing...");
-  loadCourses();
-  document.getElementById('student-course').addEventListener('change', loadCurriculum);
-  document.getElementById('add-student-form').addEventListener('submit', addStudent);
-}
+
+
+
+// Window Load Event
+window.addEventListener('load', function () {
+  const openOptionsBtn = document.getElementById('open-options-btn');
+  const optionsForm = document.getElementById('options-form');
+  const closeOptionsBtn = document.getElementById('close-options-btn');
+
+  if (openOptionsBtn && optionsForm && closeOptionsBtn) {
+    openOptionsBtn.addEventListener('click', () => {
+      optionsForm.classList.add('show');
+    });
+
+    closeOptionsBtn.addEventListener('click', () => {
+      optionsForm.classList.remove('show');
+    });
+  } else {
+    console.error('Element(s) not found');
+  }
+
+  // Load saved format
+  if (localStorage.getItem('studentIdFormat')) {
+    studentIdFormat = localStorage.getItem('studentIdFormat');
+    generateStudentId();
+  }
+
+  // Save format button click event
+  document.getElementById('save-format-btn').addEventListener('click', (e) => {
+    e.preventDefault();
+    studentIdFormat = document.getElementById('student-id-format').value;
+    localStorage.setItem('studentIdFormat', studentIdFormat);
+    alert('Format saved successfully!');
+    document.getElementById('student-id-format').value = '';
+    generateStudentId();
+  });
+
+  const addStudentForm = document.getElementById('add-student-form');
+  if (addStudentForm) {
+    // Ensure event listener is added only once
+    addStudentForm.removeEventListener('submit', addStudent);
+    addStudentForm.addEventListener('submit', addStudent);
+  }
+
+  loadCoursesAndCurriculum(); // Call your function to load data
+});
+
+
     </script>
 </head>
 <body>
-    <h1>Admin Panel for Students</h1>
+  <h1>Admin Panel for Students [STUDENT MODULE]</h1>
 
-    <form id="add-student-form" onsubmit="addStudent(); return false;">
-      <h2>Student Module</h2>
+  <button id="open-options-btn">Options</button>
+  
+<!-- Options floating form -->
+<div id="options-form" class="hidden">
+  <form id="options-form-content">
+    <label for="student-id-format">Student ID Format (e.g., 2020-):</label>
+    <input type="text" id="student-id-format" placeholder="YYYY-" required>
+    <button id="save-format-btn">Save</button>
+  </form>
+  <button id="close-options-btn">Close</button>
+</div>
+  
+  <form id="add-student-form" onsubmit="addStudent(event); return false;">
+    <!-- Existing form fields -->
+    
+    <label for="student-course">Course:</label>
+    <select id="student-course" required></select>
+    
+    <label for="student-curriculum">Curriculum:</label>
+    <select id="student-curriculum" required></select>
+    
+    <label for="student-id">Student ID:</label>
+    <input type="text" id="student-id" required>
+    
+    <label for="student-name">Name (Last Name, First Name, Middle Name):</label>
+    <input type="text" id="student-name" required>
+    
+    <label for="student-status">Status:</label>
+    <select id="student-status" required>
+      <option value="Regular">Regular</option>
+      <option value="Irregular">Irregular</option>
+    </select>
+    
+    <label for="student-year">Year Level:</label>
+    <select id="student-year" required>
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+    </select>
+    
+    <div class="academic-year-container">
+      <label for="academic-year-start">Academic Year (Start):</label>
+      <input type="number" id="academic-year-start" class="academic-year-input" required>
       
-      <label for="student-course">Course:</label>
-      <select id="student-course" required></select>
-      
-      <label for="student-curriculum">Curriculum:</label>
-      <select id="student-curriculum" required></select>
-      
-      <label for="student-id">Student ID:</label>
-      <input type="text" id="student-id" required>
-      
-      <label for="student-name">Name (Last Name, First Name, Middle Name):</label>
-      <input type="text" id="student-name" required>
-      
-      <label for="student-status">Status:</label>
-      <select id="student-status" required>
-        <option value="Regular">Regular</option>
-        <option value="Irregular">Irregular</option>
-      </select>
-      
-      <label for="student-year">Year Level:</label>
-      <select id="student-year" required>
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-      </select>
-      
-      <div class="academic-year-container">
-        <label for="academic-year-start">Academic Year (Start):</label>
-        <input type="number" id="academic-year-start" class="academic-year-input" required>
-        
-        <label for="academic-year-end">Academic Year (End):</label>
-        <input type="number" id="academic-year-end" class="academic-year-input" required>
-      </div>
-      
-      <button type="submit">Add Student</button>
-    </form>
+      <label for="academic-year-end">Academic Year (End):</label>
+      <input type="number" id="academic-year-end" class="academic-year-input" required>
+    </div>
+    
+    <button type="submit">Add Student</button>
+  </form>
+
+    
 
     
 </body>
