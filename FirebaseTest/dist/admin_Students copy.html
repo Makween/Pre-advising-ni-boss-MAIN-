@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel - Students</title>
+    <title>Admin Panel - COPY</title>
     <style>
         bodybody {
   font-family: Arial, sans-serif;
@@ -373,202 +373,222 @@ window.addEventListener('load', function () {
     <button type="submit">Add Student</button>
   </form>
 
-  <form id="student-curriculum-table" style="width: 80%; margin: auto; font-family: Arial, sans-serif;">
-    <h2 style="text-align: center;">Student Curriculum Viewer</h2>
-    <label for="student-search" style="display: block; margin-bottom: 10px;">Search Student:</label>
-    <input 
-        type="text" 
-        id="student-search" 
-        placeholder="Enter student name..." 
-        autocomplete="off" 
-        style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 5px;"
-    />
-    <ul 
-        id="search-results" 
-        style="list-style: none; margin: 0; padding: 0; border: 1px solid #ccc; max-height: 150px; overflow-y: auto; display: none; position: absolute; z-index: 1; background: white; width: calc(80% - 2px);">
-    </ul>
-    <div id="student-info" style="margin-top: 20px; padding: 10px; background: #f9f9f9; border-radius: 5px; box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);">
-        <!-- Student information will be displayed here -->
+  <form id="grade-input-form">
+    <h2>Grade Input for Student</h2>
+    <label for="student-select">Select Student:</label>
+    <input type="text" id="student-select" placeholder="Search Student..." autocomplete="off" />
+    <ul id="student-search-results"></ul>
+  
+    <div id="subject-grades-table">
+        <!-- Dynamically populated table of subjects with inputs for grades -->
     </div>
-    <table id="curriculum-table" style="width: 100%; border-collapse: collapse; margin-top: 20px; box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);">
-        <thead style="background-color: #007BFF; color: white;">
-          <tr>
-            <th style="padding: 10px; border: 1px solid #ddd;">Subject Code</th>
-            <th style="padding: 10px; border: 1px solid #ddd;">Subject Name</th>
-            <th style="padding: 10px; border: 1px solid #ddd;">Lecture Units</th>
-            <th style="padding: 10px; border: 1px solid #ddd;">Lab Units</th>
-            <th style="padding: 10px; border: 1px solid #ddd;">Total Units</th>
-            <th style="padding: 10px; border: 1px solid #ddd;">Prerequisites</th>
-            <th style="padding: 10px; border: 1px solid #ddd;">Year</th>
-            <th style="padding: 10px; border: 1px solid #ddd;">Semester</th>
-            <th style="padding: 10px; border: 1px solid #ddd;">Status</th>
-        </tr>
-        
-        </thead>
-        <tbody>
-            <!-- Curriculum data will be populated here -->
-        </tbody>
-    </table>
-</form>
-
+  
+    <button type="submit">Save Grades</button>
     <script>
-        // Elements
-const studentSearchInput = document.getElementById('student-search');
-const searchResults = document.getElementById('search-results');
-const studentInfoDiv = document.getElementById('student-info');
-const curriculumTableBody = document.getElementById('curriculum-table').querySelector('tbody');
-
-// Event Listener for Search Input
-studentSearchInput.addEventListener('input', async () => {
-    const query = studentSearchInput.value.trim();
-    if (query.length > 0) {
-        const students = await searchStudentsByName(query);
-        displaySearchResults(students);
-    } else {
-        searchResults.innerHTML = '';
-        searchResults.style.display = 'none';
-    }
-});
-
-// Fetch and Display Students Matching Query
-async function searchStudentsByName(query) {
-    const students = [];
-    const snapshot = await db.collectionGroup('StudentData').get();
-    snapshot.forEach(doc => {
-        const data = doc.data();
-        if (data.name.toLowerCase().includes(query.toLowerCase())) {
-            students.push({ id: doc.id, ...data });
-        }
-    });
-    return students;
-}
-
-// Display Search Results
-function displaySearchResults(students) {
-    searchResults.innerHTML = '';
-    if (students.length > 0) {
-        searchResults.style.display = 'block';
-        students.forEach(student => {
-            const li = document.createElement('li');
-            li.textContent = student.name;
-            li.dataset.id = student.id;
-            li.dataset.course = student.course;
-            li.dataset.curriculum = student.curriculum;
-            li.style.padding = '10px';
-            li.style.cursor = 'pointer';
-            li.style.borderBottom = '1px solid #ddd';
-            li.addEventListener('click', () => {
-                fetchAndDisplayStudentInfo(student);
-                searchResults.style.display = 'none';
-            });
-            searchResults.appendChild(li);
-        });
-    } else {
-        searchResults.style.display = 'none';
-    }
-}
-
-// Fetch and Display Selected Student Info and Curriculum
-async function fetchAndDisplayStudentInfo(student) {
-    studentSearchInput.value = student.name;
-
-    // Display student details
-    studentInfoDiv.innerHTML = `
-        <p><strong>Name:</strong> ${student.name}</p>
-        <p><strong>Course:</strong> ${student.course}</p>
-        <p><strong>Curriculum:</strong> ${student.curriculum}</p>
-        <p><strong>Program:</strong> ${student.program || 'N/A'}</p>
-        <p><strong>Status:</strong> ${student.status || 'N/A'}</p>
-        <p><strong>Year:</strong> ${student.year || 'N/A'}</p>
-        <p><strong>Academic Year Start:</strong> ${student.academicYearStart || 'N/A'}</p>
-        <p><strong>Academic Year End:</strong> ${student.academicYearEnd || 'N/A'}</p>
-    `;
-
-    // Fetch Curriculum Data
+      
+      const studentSearchInput = document.getElementById('student-select');
+  const studentSearchResults = document.getElementById('student-search-results');
+  const subjectGradesTable = document.getElementById('subject-grades-table');
+  let selectedStudentId = null;
+  
+  // Search for students by name
+  studentSearchInput.addEventListener('input', async () => {
+      const query = studentSearchInput.value.trim();
+      if (query.length > 0) {
+          const students = await searchStudents(query);
+          displaySearchResults(students);
+      } else {
+          studentSearchResults.innerHTML = '';
+      }
+  });
+  
+  // Fetch students from Firestore
+  async function searchStudents(query) {
+      const students = [];
+      const snapshot = await db.collectionGroup('StudentData').get();
+      snapshot.forEach(doc => {
+          const data = doc.data();
+          if (data.name.toLowerCase().includes(query.toLowerCase())) {
+              students.push({ id: doc.id, ...data });
+          }
+      });
+      return students;
+  }
+  
+  // Display the search results as clickable options
+  function displaySearchResults(students) {
+      studentSearchResults.innerHTML = '';
+      students.forEach(student => {
+          const li = document.createElement('li');
+          li.textContent = student.name;
+          li.addEventListener('click', () => {
+              selectedStudentId = student.id;
+              fetchAndDisplayStudentGrades(student);
+          });
+          studentSearchResults.appendChild(li);
+      });
+  }
+  
+  // Fetch and display the student's grades
+async function fetchAndDisplayStudentGrades(student) {
+    studentSearchResults.innerHTML = '';
+    
     try {
-        const curriculumDoc = await db.collection('Curriculum').doc(student.curriculum).get();
+        const studentSnapshot = await db.collection('Students').doc(student.id).get();
+        const studentData = studentSnapshot.data();
+        
+        // Check if the curriculum field exists
+        if (!studentData || !studentData.curriculum) {
+            console.error('Student data does not contain a curriculum field');
+            alert('No curriculum found for this student!');
+            return; // Exit if curriculum is not found
+        }
+        
+        console.log('Student Data:', studentData); // Debugging: Check student data
+        
+        // Proceed only if curriculum is present
+        const subjects = await fetchCurriculumSubjects(studentData.curriculum);
+        displayGradeInputs(subjects, studentData.grades);
 
-        if (!curriculumDoc.exists) {
-            console.warn("No curriculum found with ID:", student.curriculum);
+    } catch (error) {
+        console.error('Error fetching student data:', error);
+        alert('An error occurred while fetching student data.');
+    }
+}
+
+  
+  // Fetch curriculum subjects from the curriculum collection
+  // Fetch the curriculum subjects and structure them
+async function fetchCurriculumSubjects(curriculumCode) {
+    try {
+        const curriculumSnapshot = await db.collection('Curriculum').doc(curriculumCode).get();
+        const curriculumData = curriculumSnapshot.data();
+        
+        if (!curriculumData) {
+            console.error('Curriculum not found!');
+            return [];
+        }
+
+        // Structure subjects in the required format
+        const structuredSubjects = {};
+
+        Object.keys(curriculumData.subjects).forEach(year => {
+            const yearData = curriculumData.subjects[year];
+            structuredSubjects[year] = {};
+
+            Object.keys(yearData).forEach(semester => {
+                const semesterSubjects = yearData[semester];
+                structuredSubjects[year][semester] = semesterSubjects.map(subject => ({
+                    subjectId: subject.subjectId,
+                    subjectName: subject.subjectName,
+                    lec: subject.lec,
+                    labUnit: subject.labUnit,
+                    totalUnits: subject.totalUnits,
+                    prerequisites: subject.prerequisites || [],
+                }));
+            });
+        });
+
+        return structuredSubjects;
+    } catch (error) {
+        console.error('Error fetching curriculum:', error);
+        return [];
+    }
+}
+
+  
+  // Parse subjects from the curriculum
+  function parseCurriculumSubjects(subjectsMap) {
+      const subjects = [];
+      Object.keys(subjectsMap).forEach(year => {
+          const yearData = subjectsMap[year];
+          Object.keys(yearData).forEach(semester => {
+              const semesterSubjects = yearData[semester];
+              semesterSubjects.forEach(subject => {
+                  subjects.push({
+                      subjectCode: subject.subjectId || 'N/A',
+                      subjectName: subject.subjectName || 'N/A',
+                      lec: subject.lec || 'N/A',
+                      lab: subject.labUnit || 'N/A',
+                      totalUnits: subject.totalUnits || 'N/A',
+                      prerequisites: (subject.prerequisites || []).join(', ') || 'None',
+                      year: year,
+                      semester: semester,
+                      status: subject.status || 'N/A',
+                  });
+              });
+          });
+      });
+      return subjects;
+  }
+  // Save the subjects from the curriculum to the student's document
+async function saveCurriculumToStudent(studentId, curriculumCode) {
+    try {
+        const studentRef = db.collection('Students').doc(studentId);
+        const studentSnapshot = await studentRef.get();
+
+        if (!studentSnapshot.exists) {
+            console.error('Student not found!');
             return;
         }
 
-        const curriculumData = curriculumDoc.data();
-        const subjects = parseCurriculumSubjects(curriculumData.subjects);
+        const studentData = studentSnapshot.data();
+        
+        // Fetch the curriculum subjects
+        const curriculumSubjects = await fetchCurriculumSubjects(curriculumCode);
 
-        if (subjects.length === 0) {
-            console.warn("No subjects found in curriculum:", student.curriculum);
-        }
-
-        // Display Curriculum in Table
-        displayCurriculum(subjects);
-    } catch (error) {
-        console.error("Error fetching curriculum data:", error);
-    }
-}
-/// Helper Function: Parse Nested Subjects
-function parseCurriculumSubjects(subjectsMap) {
-    const subjects = [];
-
-    Object.keys(subjectsMap).forEach(year => {
-        const yearData = subjectsMap[year];
-        Object.keys(yearData).forEach(semester => {
-            const semesterSubjects = yearData[semester];
-            semesterSubjects.forEach(subject => {
-                subjects.push({
-                    subjectCode: subject.subjectId || 'N/A', // Correct subjectId mapping
-                    subjectName: subject.subjectName || 'N/A',
-                    lec: subject.lec || 'N/A',
-                    lab: subject.labUnit || 'N/A',
-                    totalUnits: subject.totalUnits || 'N/A',
-                    prerequisites: (subject.preReq || []).join(', ') || 'None', // Ensure preReq is correctly referenced
-                    year: year,
-                    semester: semester,
-                    status: subject.status || 'N/A',
-                });
-            });
+        // Add the subjects to the student's document
+        await studentRef.update({
+            subjects: curriculumSubjects,
         });
-    });
 
-    return subjects;
-}
-
-// Display Curriculum in Table
-function displayCurriculum(subjects) {
-    curriculumTableBody.innerHTML = '';
-
-    if (subjects.length === 0) {
-        curriculumTableBody.innerHTML = `
-            <tr>
-                <td colspan="8" style="text-align: center;">No subjects found for this curriculum.</td>
-            </tr>
-        `;
-        return;
+        console.log('Student curriculum updated successfully!');
+    } catch (error) {
+        console.error('Error saving curriculum to student:', error);
     }
-
-    subjects.forEach(subject => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td style="padding: 10px; border: 1px solid #ddd;">${subject.subjectCode}</td>
-            <td style="padding: 10px; border: 1px solid #ddd;">${subject.subjectName}</td>
-            <td style="padding: 10px; border: 1px solid #ddd;">${subject.lec}</td>
-            <td style="padding: 10px; border: 1px solid #ddd;">${subject.lab}</td>
-            <td style="padding: 10px; border: 1px solid #ddd;">${subject.totalUnits}</td>
-            <td style="padding: 10px; border: 1px solid #ddd;">${subject.prerequisites}</td>
-            <td style="padding: 10px; border: 1px solid #ddd;">${subject.year}</td>
-            <td style="padding: 10px; border: 1px solid #ddd;">${subject.semester}</td>
-            <td style="padding: 10px; border: 1px solid #ddd;">${subject.status || 'N/A'}</td>
-        `;
-        curriculumTableBody.appendChild(row);
-    });
 }
 
-
-  </script>
-
-
-</form>
-
+  
+  // Display subjects and grade inputs in a table
+  function displayGradeInputs(subjects, grades) {
+      subjectGradesTable.innerHTML = '';
+      subjects.forEach(subject => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+              <td>${subject.subjectCode}</td>
+              <td>${subject.subjectName}</td>
+              <td>${subject.lec}</td>
+              <td>${subject.lab}</td>
+              <td>${subject.totalUnits}</td>
+              <td><input type="number" min="1" max="5" value="${grades[subject.subjectCode]?.grade || ''}" data-subject="${subject.subjectCode}" placeholder="Enter grade"></td>
+              <td><input type="text" value="${grades[subject.subjectCode]?.remarks || ''}" data-subject="${subject.subjectCode}" placeholder="Enter remarks"></td>
+          `;
+          subjectGradesTable.appendChild(row);
+      });
+  }
+  
+  // Handle grade input form submission
+  document.getElementById('grade-input-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+  
+      const grades = {};
+      const inputs = document.querySelectorAll('input[data-subject]');
+      inputs.forEach(input => {
+          const subjectCode = input.dataset.subject;
+          const grade = input.value;
+          const remarks = document.querySelector(`input[data-subject="${subjectCode}"]:nth-child(2)`).value;
+          grades[subjectCode] = { grade, remarks };
+      });
+  
+      // Save the grades to the student's database
+      await db.collection('Students').doc(selectedStudentId).update({
+          grades: grades
+      });
+  
+      alert('Grades have been updated successfully!');
+  });
+  
+    </script>
 
     
 
