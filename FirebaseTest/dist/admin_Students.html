@@ -387,6 +387,8 @@ window.addEventListener('load', function () {
         id="search-results" 
         style="list-style: none; margin: 0; padding: 0; border: 1px solid #ccc; max-height: 150px; overflow-y: auto; display: none; position: absolute; z-index: 1; background: white; width: calc(80% - 2px);">
     </ul>
+
+
     <div id="student-info" style="margin-top: 20px; padding: 10px; background: #f9f9f9; border-radius: 5px; box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);">
         <!-- Student information will be displayed here -->
     </div>
@@ -412,7 +414,7 @@ window.addEventListener('load', function () {
 </form>
 
     <script>
-        // Elements
+     // Elements
 const studentSearchInput = document.getElementById('student-search');
 const searchResults = document.getElementById('search-results');
 const studentInfoDiv = document.getElementById('student-info');
@@ -434,12 +436,16 @@ studentSearchInput.addEventListener('input', async () => {
 async function searchStudentsByName(query) {
     const students = [];
     const snapshot = await db.collectionGroup('StudentData').get();
+    
     snapshot.forEach(doc => {
         const data = doc.data();
-        if (data.name.toLowerCase().includes(query.toLowerCase())) {
+        
+        // Ensure data.name exists before calling .toLowerCase()
+        if (data.name && data.name.toLowerCase().includes(query.toLowerCase())) {
             students.push({ id: doc.id, ...data });
         }
     });
+
     return students;
 }
 
@@ -500,13 +506,17 @@ async function fetchAndDisplayStudentInfo(student) {
             console.warn("No subjects found in curriculum:", student.curriculum);
         }
 
-        // Display Curriculum in Table
+        // Save or Update Curriculum in the Student's Document
+        await saveOrUpdateStudentCurriculum(student, subjects);
+
+        // Display Curriculum from the Student's Own Data
         displayCurriculum(subjects);
     } catch (error) {
         console.error("Error fetching curriculum data:", error);
     }
 }
-/// Helper Function: Parse Nested Subjects
+
+// Helper Function: Parse Nested Subjects
 function parseCurriculumSubjects(subjectsMap) {
     const subjects = [];
 
@@ -533,14 +543,69 @@ function parseCurriculumSubjects(subjectsMap) {
     return subjects;
 }
 
-// Display Curriculum in Table
+/// Save or Update Student's Curriculum in the Database
+async function saveOrUpdateStudentCurriculum(student, subjects) {
+  try {
+    const studentRef = db.collection('Students').doc(student.curriculum).collection('StudentData').doc(student.id);
+
+    // Prepare curriculum data
+    const curriculumData = {
+      curriculumCode: student.curriculum, // Curriculum Code
+      curriculumCourse: student.course, // Course
+      curriculumEndYear: student.academicYearEnd, // End Year
+      curriculumName: student.program, // Curriculum Name
+      curriculumStartYear: student.academicYearStart, // Start Year
+      curriculumTitle: student.program, // Title
+      subjects: {} // Subjects map (to be filled with year/semester/subject details)
+    };
+
+    // Parse subjects and structure them by year/semester
+    subjects.forEach(subject => {
+      if (!curriculumData.subjects[subject.year]) {
+        curriculumData.subjects[subject.year] = {};
+      }
+      if (!curriculumData.subjects[subject.year][subject.semester]) {
+        curriculumData.subjects[subject.year][subject.semester] = [];
+      }
+
+      curriculumData.subjects[subject.year][subject.semester].push({
+        subjectId: subject.subjectCode,
+        subjectName: subject.subjectName,
+        totalUnits: subject.totalUnits,
+        lec: subject.lec,
+        labUnit: subject.lab,
+        prerequisites: subject.prerequisites.split(', '), // Assuming preReq is a comma-separated string
+      });
+    });
+
+    // Save data to the student's document
+    await studentRef.set({
+      academicYearEnd: student.academicYearEnd,
+      academicYearStart: student.academicYearStart,
+      course: student.course,
+      curriculum: student.curriculum,
+      name: student.name,
+      program: student.program,
+      status: student.status,
+      year: student.year,
+      curriculumData: curriculumData // Save curriculum data separately
+    }, { merge: true });
+
+    console.log('Student curriculum updated successfully');
+  } catch (error) {
+    console.error('Error updating student curriculum:', error);
+  }
+}
+
+
+// Display Curriculum from Student's Own Data (After Update)
 function displayCurriculum(subjects) {
     curriculumTableBody.innerHTML = '';
 
     if (subjects.length === 0) {
         curriculumTableBody.innerHTML = `
             <tr>
-                <td colspan="8" style="text-align: center;">No subjects found for this curriculum.</td>
+                <td colspan="9" style="text-align: center;">No subjects found for this curriculum.</td>
             </tr>
         `;
         return;
@@ -557,12 +622,170 @@ function displayCurriculum(subjects) {
             <td style="padding: 10px; border: 1px solid #ddd;">${subject.prerequisites}</td>
             <td style="padding: 10px; border: 1px solid #ddd;">${subject.year}</td>
             <td style="padding: 10px; border: 1px solid #ddd;">${subject.semester}</td>
-            <td style="padding: 10px; border: 1px solid #ddd;">${subject.status || 'N/A'}</td>
+            <td style="padding: 10px; border: 1px solid #ddd;" id="status-${subject.subjectCode}">${subject.status || 'N/A'}</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">
+                <button onclick="openGradeModal('${subject.subjectCode}', '${subject.subjectName}')">Assign Grade</button>
+            </td>
         `;
         curriculumTableBody.appendChild(row);
     });
 }
 
+// GAWIN BUKAS NAKAY CHAT GPT AND PAG PAPATULOY MO !!!!!!
+// Function to open the modal for assigning grades to a subject
+function openGradeModal(subjectCode, subjectName, event) {
+    event.preventDefault();  // Prevent the default behavior (form submission or link navigation)
+    event.stopPropagation(); // Stop the event from bubbling up to prevent any parent handlers from executing
+
+    console.log('Assign Grade Button Clicked'); // Log to confirm the button click
+
+    // Create the modal container (backdrop)
+    const modal = document.createElement('div');
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    modal.style.display = 'flex';
+    modal.style.justifyContent = 'center';
+    modal.style.alignItems = 'center';
+    modal.style.zIndex = '1000'; // Ensure the modal is above everything else
+
+    // Create the modal content container
+    const modalContent = document.createElement('div');
+    modalContent.style.backgroundColor = 'white';
+    modalContent.style.padding = '20px';
+    modalContent.style.borderRadius = '10px';
+    modalContent.style.minWidth = '300px'; // Ensure modal is wide enough
+
+    // Modal title
+    const title = document.createElement('h3');
+    title.textContent = `Assign Grade for ${subjectName} (${subjectCode})`;
+
+    // Grade input label and field
+    const gradeLabel = document.createElement('label');
+    gradeLabel.textContent = 'Grade (1-3 for Passed, 3-5 for Failed): ';
+    const gradeInput = document.createElement('input');
+    gradeInput.type = 'number';
+    gradeInput.min = 1;
+    gradeInput.max = 5;
+
+    // Submit button (ensure it's not part of any form)
+    const submitButton = document.createElement('button');
+    submitButton.textContent = 'Submit Grade';
+
+    // Add event listener to prevent immediate closing and prevent form submission
+    submitButton.addEventListener('click', (event) => {
+        event.preventDefault(); // Prevent default form submission behavior
+        event.stopPropagation(); // Prevent event from bubbling up and causing page refresh
+
+        console.log('Submit Button Clicked'); // Log to confirm the button click
+
+        const grade = parseInt(gradeInput.value);
+
+        // Validate the grade input
+        if (isNaN(grade) || grade < 1 || grade > 5) {
+            alert('Please enter a valid grade between 1 and 5.');
+            return; // Return early if the grade is invalid
+        }
+
+        // If grade is valid, update the student's grade
+        updateStudentGrade(subjectCode, grade).then(() => {
+            // Close the modal after successful grade update
+            document.body.removeChild(modal);
+        }).catch((error) => {
+            console.error('Error updating grade:', error);
+        });
+    });
+
+    // Cancel button
+    const cancelButton = document.createElement('button');
+    cancelButton.textContent = 'Cancel';
+    cancelButton.addEventListener('click', (event) => {
+        event.stopPropagation(); // Prevent event from bubbling up and causing page refresh
+        document.body.removeChild(modal); // Close the modal without saving
+    });
+
+    // Append elements to modal content
+    modalContent.appendChild(title);
+    modalContent.appendChild(gradeLabel);
+    modalContent.appendChild(gradeInput);
+    modalContent.appendChild(submitButton);
+    modalContent.appendChild(cancelButton);
+
+    // Append modal content to modal
+    modal.appendChild(modalContent);
+
+    // Add the modal to the body of the page
+    document.body.appendChild(modal);
+
+    // Close modal if clicked outside the content area
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            document.body.removeChild(modal); // Close the modal if backdrop is clicked
+        }
+    });
+
+    console.log('Modal added to the body');
+}
+
+// Update the Student's Curriculum with the Assigned Grade
+async function updateStudentGrade(subjectCode, grade) {
+    const studentId = studentInfoDiv.dataset.studentId;  // Get the selected student ID
+    const curriculumCode = studentInfoDiv.dataset.curriculum; // Get the curriculum code
+
+    try {
+        // Reference the student's document
+        const studentRef = db.collection('Students').doc(curriculumCode)
+            .collection('StudentData').doc(studentId);
+
+        // Get the current curriculum data
+        const studentDoc = await studentRef.get();
+        if (!studentDoc.exists) {
+            console.error('Student not found');
+            return;
+        }
+
+        const studentData = studentDoc.data();
+        const curriculumSubjects = studentData.curriculumSubjects || {};
+
+        // If no existing grade for the subject, initialize it
+        if (!curriculumSubjects[subjectCode]) {
+            curriculumSubjects[subjectCode] = {}; // Initialize if not already present
+        }
+
+        // Update the subject grade
+        curriculumSubjects[subjectCode].grade = grade;
+
+        // Update the student's curriculum data
+        await studentRef.update({
+            curriculumSubjects: curriculumSubjects
+        });
+
+        // Update the subject status in the table (if grade is 1 to 3, it's passed, 3 to 5 is failed)
+        const statusCell = document.getElementById(`status-${subjectCode}`);
+        if (grade >= 1 && grade <= 3) {
+            statusCell.textContent = 'Passed';
+            statusCell.style.backgroundColor = 'green';
+            statusCell.style.color = 'white';
+        } else {
+            statusCell.textContent = 'Failed';
+            statusCell.style.backgroundColor = 'red';
+            statusCell.style.color = 'white';
+        }
+
+        console.log('Student grade updated successfully');
+    } catch (error) {
+        console.error('Error updating student grade:', error);
+    }
+}
+
+// Ensure the button is of type="button" to prevent form submission
+const assignGradeButton = document.getElementById("assign-grade-button");
+assignGradeButton.addEventListener('click', (event) => {
+    openGradeModal('SUBJ101', 'Math 101', event);
+});
 
   </script>
 
