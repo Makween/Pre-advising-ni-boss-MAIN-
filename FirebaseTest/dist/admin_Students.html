@@ -624,7 +624,8 @@ function displayCurriculum(subjects) {
             <td style="padding: 10px; border: 1px solid #ddd;">${subject.semester}</td>
             <td style="padding: 10px; border: 1px solid #ddd;" id="status-${subject.subjectCode}">${subject.status || 'N/A'}</td>
             <td style="padding: 10px; border: 1px solid #ddd;">
-                <button onclick="openGradeModal('${subject.subjectCode}', '${subject.subjectName}')">Assign Grade</button>
+               <button type="button" onclick="openGradeModal('${subject.subjectCode}', '${subject.subjectName}')">Assign Grade</button>
+
             </td>
         `;
         curriculumTableBody.appendChild(row);
@@ -633,13 +634,7 @@ function displayCurriculum(subjects) {
 
 // GAWIN BUKAS NAKAY CHAT GPT AND PAG PAPATULOY MO !!!!!!
 // Function to open the modal for assigning grades to a subject
-function openGradeModal(subjectCode, subjectName, event) {
-    event.preventDefault();  // Prevent the default behavior (form submission or link navigation)
-    event.stopPropagation(); // Stop the event from bubbling up to prevent any parent handlers from executing
-
-    console.log('Assign Grade Button Clicked'); // Log to confirm the button click
-
-    // Create the modal container (backdrop)
+function openGradeModal(subjectCode, subjectName) {
     const modal = document.createElement('div');
     modal.style.position = 'fixed';
     modal.style.top = '0';
@@ -650,85 +645,73 @@ function openGradeModal(subjectCode, subjectName, event) {
     modal.style.display = 'flex';
     modal.style.justifyContent = 'center';
     modal.style.alignItems = 'center';
-    modal.style.zIndex = '1000'; // Ensure the modal is above everything else
+    modal.style.zIndex = '1000';
 
-    // Create the modal content container
     const modalContent = document.createElement('div');
     modalContent.style.backgroundColor = 'white';
     modalContent.style.padding = '20px';
     modalContent.style.borderRadius = '10px';
-    modalContent.style.minWidth = '300px'; // Ensure modal is wide enough
+    modalContent.style.minWidth = '300px';
 
-    // Modal title
+    // Stop event propagation for modal content
+    modalContent.addEventListener('click', (event) => event.stopPropagation());
+
     const title = document.createElement('h3');
     title.textContent = `Assign Grade for ${subjectName} (${subjectCode})`;
 
-    // Grade input label and field
     const gradeLabel = document.createElement('label');
     gradeLabel.textContent = 'Grade (1-3 for Passed, 3-5 for Failed): ';
     const gradeInput = document.createElement('input');
     gradeInput.type = 'number';
     gradeInput.min = 1;
     gradeInput.max = 5;
+    gradeInput.required = true;
 
-    // Submit button (ensure it's not part of any form)
     const submitButton = document.createElement('button');
     submitButton.textContent = 'Submit Grade';
+    submitButton.style.marginTop = '10px';
 
-    // Add event listener to prevent immediate closing and prevent form submission
-    submitButton.addEventListener('click', (event) => {
-        event.preventDefault(); // Prevent default form submission behavior
-        event.stopPropagation(); // Prevent event from bubbling up and causing page refresh
-
-        console.log('Submit Button Clicked'); // Log to confirm the button click
-
-        const grade = parseInt(gradeInput.value);
-
-        // Validate the grade input
+    submitButton.addEventListener('click', async (event) => {
+        event.preventDefault();
+        const grade = parseFloat(gradeInput.value);
         if (isNaN(grade) || grade < 1 || grade > 5) {
             alert('Please enter a valid grade between 1 and 5.');
-            return; // Return early if the grade is invalid
+            return;
         }
 
-        // If grade is valid, update the student's grade
-        updateStudentGrade(subjectCode, grade).then(() => {
-            // Close the modal after successful grade update
-            document.body.removeChild(modal);
-        }).catch((error) => {
-            console.error('Error updating grade:', error);
-        });
+        const remarks = grade <= 3 ? 'Passed' : 'Failed';
+        await updateGradeInDatabase(subjectCode, grade, remarks);
+
+        // Update the UI
+        document.getElementById(`status-${subjectCode}`).textContent = remarks;
+
+        // Close modal after submission
+        document.body.removeChild(modal);
     });
 
-    // Cancel button
-    const cancelButton = document.createElement('button');
-    cancelButton.textContent = 'Cancel';
-    cancelButton.addEventListener('click', (event) => {
-        event.stopPropagation(); // Prevent event from bubbling up and causing page refresh
-        document.body.removeChild(modal); // Close the modal without saving
-    });
-
-    // Append elements to modal content
     modalContent.appendChild(title);
     modalContent.appendChild(gradeLabel);
     modalContent.appendChild(gradeInput);
     modalContent.appendChild(submitButton);
-    modalContent.appendChild(cancelButton);
-
-    // Append modal content to modal
     modal.appendChild(modalContent);
 
-    // Add the modal to the body of the page
+    modal.addEventListener('click', () => document.body.removeChild(modal)); // Close modal on outside click
     document.body.appendChild(modal);
-
-    // Close modal if clicked outside the content area
-    modal.addEventListener('click', (event) => {
-        if (event.target === modal) {
-            document.body.removeChild(modal); // Close the modal if backdrop is clicked
-        }
-    });
-
-    console.log('Modal added to the body');
 }
+
+
+
+
+// Attach the openGradeModal function to your table's "Assign Grade" buttons
+document.querySelectorAll('.assign-grade-btn').forEach((button) => {
+    button.addEventListener('click', (event) => {
+        event.preventDefault(); // Prevent default link or form submission
+        event.stopPropagation(); // Stop propagation to parent elements
+        const subjectCode = button.dataset.subjectCode;
+        const subjectName = button.dataset.subjectName;
+        openGradeModal(subjectCode, subjectName);
+    });
+});
 
 // Update the Student's Curriculum with the Assigned Grade
 async function updateStudentGrade(subjectCode, grade) {
