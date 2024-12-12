@@ -633,142 +633,145 @@ function displayCurriculum(subjects) {
 }
 
 // GAWIN BUKAS NAKAY CHAT GPT AND PAG PAPATULOY MO !!!!!!
-// Function to open the modal for assigning grades to a subject
-function openGradeModal(subjectCode, subjectName) {
-    const modal = document.createElement('div');
-    modal.style.position = 'fixed';
-    modal.style.top = '0';
-    modal.style.left = '0';
-    modal.style.width = '100%';
-    modal.style.height = '100%';
-    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-    modal.style.display = 'flex';
-    modal.style.justifyContent = 'center';
-    modal.style.alignItems = 'center';
-    modal.style.zIndex = '1000';
+// DYNAMIC BUTTON CREATION
+function createAssignGradeButton(subjectCode, subjectName, studentId, curriculumCode) {
+  if (!subjectCode || !subjectName || !studentId || !curriculumCode) {
+    console.error(`Missing data: subjectCode=${subjectCode}, subjectName=${subjectName}, studentId=${studentId}, curriculumCode=${curriculumCode}`);
+    return '';
+  }
 
-    const modalContent = document.createElement('div');
-    modalContent.style.backgroundColor = 'white';
-    modalContent.style.padding = '20px';
-    modalContent.style.borderRadius = '10px';
-    modalContent.style.minWidth = '300px';
+  const buttonHTML = `
+    <button 
+      class="assign-grade-btn" 
+      data-subject-code="${subjectCode}" 
+      data-subject-name="${subjectName}" 
+      data-student-id="${studentId}" 
+      data-curriculum-code="${curriculumCode}">
+      Assign Grade
+    </button>
+  `;
 
-    // Stop event propagation for modal content
-    modalContent.addEventListener('click', (event) => event.stopPropagation());
+  const buttonElement = document.createElement('div');
+  buttonElement.innerHTML = buttonHTML;
 
-    const title = document.createElement('h3');
-    title.textContent = `Assign Grade for ${subjectName} (${subjectCode})`;
+  const button = buttonElement.firstChild;
 
-    const gradeLabel = document.createElement('label');
-    gradeLabel.textContent = 'Grade (1-3 for Passed, 3-5 for Failed): ';
-    const gradeInput = document.createElement('input');
-    gradeInput.type = 'number';
-    gradeInput.min = 1;
-    gradeInput.max = 5;
-    gradeInput.required = true;
+  button.addEventListener('click', (event) => {
+    event.target.blur(); // Remove focus from button
+    openGradeModal(event.target); // Pass the button element
+  });
 
-    const submitButton = document.createElement('button');
-    submitButton.textContent = 'Submit Grade';
-    submitButton.style.marginTop = '10px';
-
-    submitButton.addEventListener('click', async (event) => {
-        event.preventDefault();
-        const grade = parseFloat(gradeInput.value);
-        if (isNaN(grade) || grade < 1 || grade > 5) {
-            alert('Please enter a valid grade between 1 and 5.');
-            return;
-        }
-
-        const remarks = grade <= 3 ? 'Passed' : 'Failed';
-        await updateGradeInDatabase(subjectCode, grade, remarks);
-
-        // Update the UI
-        document.getElementById(`status-${subjectCode}`).textContent = remarks;
-
-        // Close modal after submission
-        document.body.removeChild(modal);
-    });
-
-    modalContent.appendChild(title);
-    modalContent.appendChild(gradeLabel);
-    modalContent.appendChild(gradeInput);
-    modalContent.appendChild(submitButton);
-    modal.appendChild(modalContent);
-
-    modal.addEventListener('click', () => document.body.removeChild(modal)); // Close modal on outside click
-    document.body.appendChild(modal);
+  return button;
 }
 
+// FUNCTION TO OPEN GRADE MODAL
+function openGradeModal(event) {
+  const button = event.target.closest('.assign-grade-btn');
 
+  if (!button) {
+    console.error('Button element not found');
+    return;
+  }
 
+  const subjectCode = button.dataset.subjectCode;
+  const subjectName = button.dataset.subjectName;
+  const studentId = button.dataset.studentId;
+  const curriculumCode = button.dataset.curriculumCode;
 
-// Attach the openGradeModal function to your table's "Assign Grade" buttons
-document.querySelectorAll('.assign-grade-btn').forEach((button) => {
-    button.addEventListener('click', (event) => {
-        event.preventDefault(); // Prevent default link or form submission
-        event.stopPropagation(); // Stop propagation to parent elements
-        const subjectCode = button.dataset.subjectCode;
-        const subjectName = button.dataset.subjectName;
-        openGradeModal(subjectCode, subjectName);
-    });
-});
+  console.log('Modal data:', { subjectCode, subjectName, studentId, curriculumCode });
 
-// Update the Student's Curriculum with the Assigned Grade
-async function updateStudentGrade(subjectCode, grade) {
-    const studentId = studentInfoDiv.dataset.studentId;  // Get the selected student ID
-    const curriculumCode = studentInfoDiv.dataset.curriculum; // Get the curriculum code
+  const modal = document.createElement('div');
+  modal.style.position = 'fixed';
+  modal.style.top = '0';
+  modal.style.left = '0';
+  modal.style.width = '100%';
+  modal.style.height = '100%';
+  modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+  modal.style.display = 'flex';
+  modal.style.justifyContent = 'center';
+  modal.style.alignItems = 'center';
+  modal.style.zIndex = '1000';
 
-    try {
-        // Reference the student's document
-        const studentRef = db.collection('Students').doc(curriculumCode)
-            .collection('StudentData').doc(studentId);
+  const modalContent = document.createElement('div');
+  modalContent.style.backgroundColor = 'white';
+  modalContent.style.padding = '20px';
+  modalContent.style.borderRadius = '10px';
+  modalContent.style.minWidth = '300px';
 
-        // Get the current curriculum data
-        const studentDoc = await studentRef.get();
-        if (!studentDoc.exists) {
-            console.error('Student not found');
-            return;
-        }
+  modalContent.addEventListener('click', (event) => event.stopPropagation());
 
-        const studentData = studentDoc.data();
-        const curriculumSubjects = studentData.curriculumSubjects || {};
+  const title = document.createElement('h3');
+  title.textContent = `Assign Grade for ${subjectName} (${subjectCode})`;
 
-        // If no existing grade for the subject, initialize it
-        if (!curriculumSubjects[subjectCode]) {
-            curriculumSubjects[subjectCode] = {}; // Initialize if not already present
-        }
+  const gradeLabel = document.createElement('label');
+  gradeLabel.textContent = 'Grade (1-3 for Passed, 3-5 for Failed): ';
+  const gradeInput = document.createElement('input');
+  gradeInput.type = 'number';
+  gradeInput.min = 1;
+  gradeInput.max = 5;
+  gradeInput.required = true;
 
-        // Update the subject grade
-        curriculumSubjects[subjectCode].grade = grade;
+  const submitButton = document.createElement('button');
+  submitButton.textContent = 'Submit Grade';
+  submitButton.style.marginTop = '10px';
 
-        // Update the student's curriculum data
-        await studentRef.update({
-            curriculumSubjects: curriculumSubjects
-        });
-
-        // Update the subject status in the table (if grade is 1 to 3, it's passed, 3 to 5 is failed)
-        const statusCell = document.getElementById(`status-${subjectCode}`);
-        if (grade >= 1 && grade <= 3) {
-            statusCell.textContent = 'Passed';
-            statusCell.style.backgroundColor = 'green';
-            statusCell.style.color = 'white';
-        } else {
-            statusCell.textContent = 'Failed';
-            statusCell.style.backgroundColor = 'red';
-            statusCell.style.color = 'white';
-        }
-
-        console.log('Student grade updated successfully');
-    } catch (error) {
-        console.error('Error updating student grade:', error);
+  submitButton.addEventListener('click', async (event) => {
+    event.preventDefault();
+    const grade = parseFloat(gradeInput.value);
+    if (isNaN(grade) || grade < 1 || grade > 5) {
+      alert('Please enter a valid grade between 1 and 5.');
+      return;
     }
+
+    await updateStudentGrade(studentId, curriculumCode, subjectCode, grade);
+
+    const statusElement = document.getElementById(`status-${subjectCode}`);
+    if (statusElement) {
+      statusElement.textContent = grade <= 3 ? 'Passed' : 'Failed';
+    }
+
+    document.body.removeChild(modal);
+  });
+
+  modalContent.appendChild(title);
+  modalContent.appendChild(gradeLabel);
+  modalContent.appendChild(gradeInput);
+  modalContent.appendChild(submitButton);
+  modal.appendChild(modalContent);
+
+  modal.addEventListener('click', () => document.body.removeChild(modal));
+  document.body.appendChild(modal);
 }
 
-// Ensure the button is of type="button" to prevent form submission
-const assignGradeButton = document.getElementById("assign-grade-button");
-assignGradeButton.addEventListener('click', (event) => {
-    openGradeModal('SUBJ101', 'Math 101', event);
-});
+// FUNCTION TO UPDATE GRADE IN FIRESTORE
+async function updateStudentGrade(studentId, curriculumCode, subjectCode, grade) {
+  try {
+    const studentRef = db.collection('Students')
+                         .doc(curriculumCode) // Match with the curriculumCode from the button
+                         .collection('StudentData')
+                         .doc(studentId); // Match with the studentId from the button
+
+    const studentDoc = await studentRef.get();
+    if (!studentDoc.exists) {
+      console.error('Student not found at:', studentRef.path);
+      alert(`Student record not found in the database for ID: ${studentId} and Curriculum: ${curriculumCode}`);
+      return;
+    }
+
+    const studentData = studentDoc.data();
+    const curriculumSubjects = studentData.subjects || {};
+    if (!curriculumSubjects[subjectCode]) {
+      curriculumSubjects[subjectCode] = {};
+    }
+    curriculumSubjects[subjectCode].grade = grade;
+    curriculumSubjects[subjectCode].remarks = grade <= 3 ? 'Passed' : 'Failed';
+
+    await studentRef.update({ subjects: curriculumSubjects });
+    console.log('Grade updated successfully');
+  } catch (error) {
+    console.error('Error updating grade:', error);
+  }
+}
 
   </script>
 
