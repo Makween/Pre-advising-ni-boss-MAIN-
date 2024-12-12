@@ -407,6 +407,9 @@ window.addEventListener('load', function () {
             <th style="padding: 10px; border: 1px solid #ddd;">Year</th>
             <th style="padding: 10px; border: 1px solid #ddd;">Semester</th>
             <th style="padding: 10px; border: 1px solid #ddd;">Status</th>
+            <th style="padding: 10px; border: 1px solid #ddd;">Grade</th>
+            <th style="padding: 10px; border: 1px solid #ddd;">Remarks</th>
+            <th style="padding: 10px; border: 1px solid #ddd;">Actions</th>
         </tr>
         
       </thead>
@@ -415,9 +418,13 @@ window.addEventListener('load', function () {
       </tbody>
       </table>
       </form>
-      
+     
+
       <script>
+
       // Elements
+      let selectedStudentId = null; // Global variable to store selected student ID
+
       const studentSearchInput = document.getElementById('student-search');
       const searchResults = document.getElementById('search-results');
       const studentInfoDiv = document.getElementById('student-info');
@@ -478,46 +485,49 @@ window.addEventListener('load', function () {
       
       // Fetch and Display Selected Student Info and Curriculum
       async function fetchAndDisplayStudentInfo(student) {
-          studentSearchInput.value = student.name;
-      
-          // Display student details
-          studentInfoDiv.innerHTML = `
-              <p><strong>Name:</strong> ${student.name}</p>
-              <p><strong>Course:</strong> ${student.course}</p>
-              <p><strong>Curriculum:</strong> ${student.curriculum}</p>
-              <p><strong>Program:</strong> ${student.program || 'N/A'}</p>
-              <p><strong>Status:</strong> ${student.status || 'N/A'}</p>
-              <p><strong>Year:</strong> ${student.year || 'N/A'}</p>
-              <p><strong>Academic Year Start:</strong> ${student.academicYearStart || 'N/A'}</p>
-              <p><strong>Academic Year End:</strong> ${student.academicYearEnd || 'N/A'}</p>
-          `;
-      
-          // Fetch Curriculum Data
-          try {
-              const curriculumDoc = await db.collection('Curriculum').doc(student.curriculum).get();
-      
-              if (!curriculumDoc.exists) {
-                  console.warn("No curriculum found with ID:", student.curriculum);
-                  return;
-              }
-      
-              const curriculumData = curriculumDoc.data();
-              const subjects = parseCurriculumSubjects(curriculumData.subjects);
-      
-              if (subjects.length === 0) {
-                  console.warn("No subjects found in curriculum:", student.curriculum);
-              }
-      
-              // Save or Update Curriculum in the Student's Document
-              await saveOrUpdateStudentCurriculum(student, subjects, curriculumData);
-      
-              // Display Curriculum from the Student's Own Data
-              displayCurriculum(subjects);
-          } catch (error) {
-              console.error("Error fetching curriculum data:", error);
-          }
-      }
-      
+    selectedStudentId = student.id; // Store the selected student ID globally
+    studentSearchInput.value = student.name;
+
+    // Display student details
+    studentInfoDiv.innerHTML = `
+      <p><strong>STUDENT ID:</strong> ${student.id}</p>
+        <p><strong>NAME:</strong> ${student.name}</p>
+        <p><strong>COURSE:</strong> ${student.course}</p>
+        <p><strong>CURRICULUM:</strong> ${student.curriculum}</p>
+        <p><strong>PROGRAM:</strong> ${student.program || 'N/A'}</p>
+        <p><strong>STATUS:</strong> ${student.status || 'N/A'}</p>
+        <p><strong>YEAR:</strong> ${student.year || 'N/A'}</p>
+        <p><strong>Academic Year Start:</strong> ${student.academicYearStart || 'N/A'}</p>
+        <p><strong>Academic Year End:</strong> ${student.academicYearEnd || 'N/A'}</p>
+    `;
+
+    // Fetch and update the student's curriculum while preserving grades and remarks
+    try {
+        const curriculumDoc = await db.collection('Curriculum').doc(student.curriculum).get();
+
+        if (!curriculumDoc.exists) {
+            console.warn("No curriculum found with ID:", student.curriculum);
+            return;
+        }
+
+        const curriculumData = curriculumDoc.data();
+        const subjects = parseCurriculumSubjects(curriculumData.subjects);
+
+        if (subjects.length === 0) {
+            console.warn("No subjects found in curriculum:", student.curriculum);
+        }
+
+        // Save or Update Curriculum in the Student's Document
+        await saveOrUpdateStudentCurriculum(student, subjects, curriculumData);
+
+        // Display Curriculum from the Student's Own Data
+        displayCurriculum(subjects);
+    } catch (error) {
+        console.error("Error fetching curriculum data:", error);
+    }
+}
+
+
       // Helper Function: Parse Nested Subjects
       function parseCurriculumSubjects(subjectsMap) {
           const subjects = [];
@@ -545,95 +555,127 @@ window.addEventListener('load', function () {
           return subjects;
       }
       
-      // Save or Update Student's Curriculum in the Database
-      async function saveOrUpdateStudentCurriculum(student, subjects, curriculumData) {
-        try {
-          const studentRef = db.collection('Students').doc(student.curriculum).collection('StudentData').doc(student.id);
-      
-          // Prepare curriculum data (keeping student's academic year unchanged)
-          const curriculumDataToSave = {
-            curriculumCode: student.curriculum, // Curriculum Code
-            curriculumCourse: student.course, // Course
-            curriculumEndYear: curriculumData.curriculumEndYear, // Curriculum End Year (use curriculum end year)
-            curriculumName: student.program, // Curriculum Name
-            curriculumStartYear: curriculumData.curriculumStartYear, // Curriculum Start Year (use curriculum start year)
-            curriculumTitle: student.program, // Title
-            subjects: {} // Subjects map (to be filled with year/semester/subject details)
-          };
-      
-          // Parse subjects and structure them by year/semester
-          subjects.forEach(subject => {
+      // Save or Update Student's Curriculum in the Database (Preserving Grades and Remarks)
+async function saveOrUpdateStudentCurriculum(student, subjects, curriculumData) {
+    try {
+        const studentRef = db.collection('Students').doc(student.curriculum).collection('StudentData').doc(student.id);
+        
+        // Fetch current student's data to get the existing curriculum with grades and remarks
+        const studentDoc = await studentRef.get();
+        const currentData = studentDoc.data();
+        const currentCurriculum = currentData.curriculumData || {};
+
+        // Prepare curriculum data to save, merging the new subjects with the existing ones
+        const curriculumDataToSave = {
+            curriculumCode: student.curriculum, 
+            curriculumCourse: student.course,
+            curriculumEndYear: curriculumData.curriculumEndYear, 
+            curriculumName: student.program,
+            curriculumStartYear: curriculumData.curriculumStartYear, 
+            curriculumTitle: student.program,
+            subjects: {} // To hold the year/semester/subject structure
+        };
+
+        // Merge the new subjects with existing subjects in the current curriculum
+        subjects.forEach(subject => {
+            // Check if the subject exists in the current curriculum
+            const yearSubjects = currentCurriculum.subjects && currentCurriculum.subjects[subject.year] ? currentCurriculum.subjects[subject.year] : {};
+            const semesterSubjects = yearSubjects[subject.semester] || [];
+
+            // Look for an existing subject with the same subjectId
+            const existingSubject = semesterSubjects.find(s => s.subjectId === subject.subjectCode);
+            if (existingSubject) {
+                // If the subject exists, keep the grade and remarks from the current data
+                subject.grade = existingSubject.grade || subject.grade;
+                subject.remarks = existingSubject.remarks || subject.remarks;
+            }
+
+            // Ensure the subject is added in the appropriate year/semester
             if (!curriculumDataToSave.subjects[subject.year]) {
-              curriculumDataToSave.subjects[subject.year] = {};
+                curriculumDataToSave.subjects[subject.year] = {};
             }
             if (!curriculumDataToSave.subjects[subject.year][subject.semester]) {
-              curriculumDataToSave.subjects[subject.year][subject.semester] = [];
+                curriculumDataToSave.subjects[subject.year][subject.semester] = [];
             }
-      
+
+            // Make sure all fields have valid values before saving
             curriculumDataToSave.subjects[subject.year][subject.semester].push({
-              subjectId: subject.subjectCode,
-              subjectName: subject.subjectName,
-              totalUnits: subject.totalUnits,
-              lec: subject.lec,
-              labUnit: subject.lab,
-              prerequisites: subject.prerequisites.split(', '), // Assuming preReq is a comma-separated string
+                subjectId: subject.subjectCode || 'N/A',
+                subjectName: subject.subjectName || 'N/A',
+                totalUnits: subject.totalUnits || 0,
+                lec: subject.lec || 'N/A',
+                labUnit: subject.lab || 'N/A',
+                prerequisites: subject.prerequisites ? subject.prerequisites.split(', ') : ['None'],
+                grade: subject.grade || 'N/A',  // Default to 'N/A' if undefined
+                remarks: subject.remarks || 'N/A' // Default to 'N/A' if undefined
             });
-          });
-      
-          // Save curriculum data without changing student's academic year
-          await studentRef.set({
-            academicYearEnd: student.academicYearEnd,  // Keep original academicYearEnd
-            academicYearStart: student.academicYearStart,  // Keep original academicYearStart
-            course: student.course,
-            curriculum: student.curriculum,
-            name: student.name,
-            program: student.program,
-            status: student.status,
-            year: student.year,
-            curriculumData: curriculumDataToSave // Save curriculum data separately
-          }, { merge: true });
-      
-          console.log('Student curriculum updated successfully');
-        } catch (error) {
-          console.error('Error updating student curriculum:', error);
-        }
-      }
+        });
+
+        // Save the updated curriculum data back to the student's document
+        await studentRef.set({
+            academicYearEnd: student.academicYearEnd || 'N/A',
+            academicYearStart: student.academicYearStart || 'N/A',
+            course: student.course || 'N/A',
+            curriculum: student.curriculum || 'N/A',
+            name: student.name || 'N/A',
+            program: student.program || 'N/A',
+            status: student.status || 'N/A',
+            year: student.year || 'N/A',
+            curriculumData: curriculumDataToSave // Save the merged curriculum
+        }, { merge: true });
+
+        console.log('Student curriculum updated successfully');
+    } catch (error) {
+        console.error('Error updating student curriculum:', error);
+    }
+}
+
+
       
       // Display Curriculum from Student's Own Data (After Update)
-      function displayCurriculum(subjects) {
-          curriculumTableBody.innerHTML = '';
-      
-          if (subjects.length === 0) {
-              curriculumTableBody.innerHTML = `
-                  <tr>
-                      <td colspan="9" style="text-align: center;">No subjects found for this curriculum.</td>
-                  </tr>
-              `;
-              return;
-          }
-      
-          subjects.forEach(subject => {
-              const row = document.createElement('tr');
-              row.innerHTML = `
-                  <td style="padding: 10px; border: 1px solid #ddd;">${subject.subjectCode}</td>
-                  <td style="padding: 10px; border: 1px solid #ddd;">${subject.subjectName}</td>
-                  <td style="padding: 10px; border: 1px solid #ddd;">${subject.lec}</td>
-                  <td style="padding: 10px; border: 1px solid #ddd;">${subject.lab}</td>
-                  <td style="padding: 10px; border: 1px solid #ddd;">${subject.totalUnits}</td>
-                  <td style="padding: 10px; border: 1px solid #ddd;">${subject.prerequisites}</td>
-                  <td style="padding: 10px; border: 1px solid #ddd;">${subject.year}</td>
-                  <td style="padding: 10px; border: 1px solid #ddd;">${subject.semester}</td>
-                  <td style="padding: 10px; border: 1px solid #ddd;" id="status-${subject.subjectCode}">${subject.status || 'N/A'}</td>
-                  <td style="padding: 10px; border: 1px solid #ddd;">
-                     <button type="button" onclick="openGradeModal('${subject.subjectCode}', '${subject.subjectName}')">Assign Grade</button>
-                  </td>
-              `;
-              curriculumTableBody.appendChild(row);
-          });
-      }
+   // Display Curriculum from Student's Own Data (After Update)
+function displayCurriculum(subjects) {
+    curriculumTableBody.innerHTML = '';
+
+    if (subjects.length === 0) {
+        curriculumTableBody.innerHTML = `
+            <tr>
+                <td colspan="10" style="text-align: center;">No subjects found for this curriculum.</td>
+            </tr>
+        `;
+        return;
+    }
+
+    subjects.forEach(subject => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td style="padding: 10px; border: 1px solid #ddd;">${subject.subjectCode}</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">${subject.subjectName}</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">${subject.lec}</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">${subject.lab}</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">${subject.totalUnits}</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">${subject.prerequisites}</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">${subject.year}</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">${subject.semester}</td>
+            <td style="padding: 10px; border: 1px solid #ddd;" id="status-${subject.subjectCode}">${subject.status || 'N/A'}</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">${subject.grade || 'N/A'}</td> <!-- Grade Column -->
+            <td style="padding: 10px; border: 1px solid #ddd;">${subject.remarks || 'N/A'}</td> <!-- Remarks Column -->
+            <td style="padding: 10px; border: 1px solid #ddd;">
+                <button type="button" onclick="openGradeModal('${subject.subjectCode}', '${subject.subjectName}')">Assign Grade</button>
+            </td>
+        `;
+        curriculumTableBody.appendChild(row);
+    });
+}
+
       
   // Open the Grade Modal when button is clicked
-function openGradeModal(subjectCode, subjectName, studentId) {
+  function openGradeModal(subjectCode, subjectName) {
+  if (!selectedStudentId) {
+    alert('No student selected');
+    return;
+  }
+
   const modal = document.createElement('div');
   modal.style.position = 'fixed';
   modal.style.top = '0';
@@ -656,22 +698,58 @@ function openGradeModal(subjectCode, subjectName, studentId) {
     <h2>Assign Grade</h2>
     <p><strong>${subjectName}</strong></p>
     <label for="grade-input">Grade:</label>
-    <input type="text" id="grade-input" placeholder="Enter grade">
-    <button onclick="assignGrade('${subjectCode}', '${studentId}')">Save</button>
+    <select id="grade-input">
+      <option value="1.00">1.00</option>
+      <option value="1.25">1.25</option>
+      <option value="1.50">1.50</option>
+      <option value="1.75">1.75</option>
+      <option value="2.00">2.00</option>
+      <option value="2.25">2.25</option>
+      <option value="2.50">2.50</option>
+      <option value="2.75">2.75</option>
+      <option value="3.00">3.00</option>
+      <option value="3.25">3.25</option>
+      <option value="3.50">3.50</option>
+      <option value="3.75">3.75</option>
+      <option value="4.00">4.00</option>
+      <option value="5.00">5.00</option>
+    </select>
+    <button onclick="assignGrade('${subjectCode}')">Save</button>
     <button onclick="closeModal()">Cancel</button>
   `;
   modal.appendChild(modalContent);
   document.body.appendChild(modal);
 }
 
-// Get the student document reference based on studentId
-async function getStudentRefById(studentId) {
-  const studentRef = db.collection('Students').doc(studentId);
-  return studentRef;
+// Close Modal
+function closeModal() {
+  const modal = document.querySelector('div[style*="position: fixed"]'); // Find the modal by its inline style
+  if (modal) {
+    modal.remove(); // Remove the modal from the DOM
+  }
 }
 
+// Get the student document reference based on studentId
+async function getStudentRefById(studentId) {
+  console.log('Fetching student with ID:', studentId);
+
+  // Use a collection group query to search within `StudentData` across all parent documents
+  const snapshot = await db.collectionGroup('StudentData')
+    .where('studentId', '==', studentId)
+    .get();
+
+  if (!snapshot.empty) {
+    console.log('Student found:', snapshot.docs[0].data());
+    return snapshot.docs[0].ref; // Return the first match
+  }
+
+  console.error('No student found with ID:', studentId);
+  throw new Error('Student not found');
+}
+
+
 // Assign Grade to Subject
-async function assignGrade(subjectCode, studentId) {
+async function assignGrade(subjectCode) {
   const gradeInput = document.getElementById('grade-input');
   const grade = gradeInput.value.trim();
 
@@ -680,16 +758,13 @@ async function assignGrade(subjectCode, studentId) {
     return;
   }
 
-  const subjectRow = document.querySelector(`#status-${subjectCode}`);
-  if (!subjectRow) {
-    console.error('Subject row not found');
+  if (!selectedStudentId) {
+    alert('No student selected');
     return;
   }
 
-  subjectRow.textContent = grade;
-
   try {
-    const studentRef = await getStudentRefById(studentId);
+    const studentRef = await getStudentRefById(selectedStudentId); // Use the global `selectedStudentId`
     await updateStudentGrade(studentRef, subjectCode, grade);
     console.log('Grade updated successfully');
   } catch (error) {
@@ -699,26 +774,32 @@ async function assignGrade(subjectCode, studentId) {
   closeModal(); // Close modal after grade is updated
 }
 
+
+
 // Update Grade in Firestore
 async function updateStudentGrade(studentRef, subjectCode, grade) {
   const studentDoc = await studentRef.get();
-  if (!studentDoc.exists) {
-    throw new Error('Student not found');
-  }
-
   const studentData = studentDoc.data();
+
   const curriculumData = studentData.curriculumData;
   let subjectUpdated = false;
 
-  // Loop through the subjects and find the one matching subjectCode
+  // Remarks logic
+  let remarks = '';
+  if (grade >= 1.00 && grade <= 3.00) {
+    remarks = 'Passed';
+  } else if (grade >= 3.25 && grade <= 5.00) {
+    remarks = 'Failed';
+  }
+
   for (const year in curriculumData.subjects) {
     for (const semester in curriculumData.subjects[year]) {
       const subjects = curriculumData.subjects[year][semester];
       for (let i = 0; i < subjects.length; i++) {
         const subject = subjects[i];
         if (subject.subjectId === subjectCode) {
-          subject.grade = grade;
-          subject.remarks = grade >= 3.0 ? 'Passed' : 'Failed';
+          subject.grade = grade; // Store the grade
+          subject.remarks = remarks; // Update remarks based on the grade range
           subjectUpdated = true;
           break;
         }
@@ -730,12 +811,13 @@ async function updateStudentGrade(studentRef, subjectCode, grade) {
 
   if (subjectUpdated) {
     await studentRef.update({
-      'curriculumData.subjects': curriculumData.subjects,
+      'curriculumData.subjects': curriculumData.subjects, // Save updated subjects map
     });
   } else {
     throw new Error(`Subject with code ${subjectCode} not found in curriculum`);
   }
 }
+
       </script>
       
       </body>

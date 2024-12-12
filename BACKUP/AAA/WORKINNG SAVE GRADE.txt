@@ -1,0 +1,148 @@
+ // Open the Grade Modal when button is clicked
+  function openGradeModal(subjectCode, subjectName) {
+  if (!selectedStudentId) {
+    alert('No student selected');
+    return;
+  }
+
+  const modal = document.createElement('div');
+  modal.style.position = 'fixed';
+  modal.style.top = '0';
+  modal.style.left = '0';
+  modal.style.width = '100%';
+  modal.style.height = '100%';
+  modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+  modal.style.display = 'flex';
+  modal.style.justifyContent = 'center';
+  modal.style.alignItems = 'center';
+
+  const modalContent = document.createElement('div');
+  modalContent.style.backgroundColor = 'white';
+  modalContent.style.padding = '20px';
+  modalContent.style.borderRadius = '8px';
+  modalContent.style.width = '300px';
+  modalContent.style.textAlign = 'center';
+
+  modalContent.innerHTML = `
+    <h2>Assign Grade</h2>
+    <p><strong>${subjectName}</strong></p>
+    <label for="grade-input">Grade:</label>
+    <select id="grade-input">
+      <option value="1.00">1.00</option>
+      <option value="1.25">1.25</option>
+      <option value="1.50">1.50</option>
+      <option value="1.75">1.75</option>
+      <option value="2.00">2.00</option>
+      <option value="2.25">2.25</option>
+      <option value="2.50">2.50</option>
+      <option value="2.75">2.75</option>
+      <option value="3.00">3.00</option>
+      <option value="3.25">3.25</option>
+      <option value="3.50">3.50</option>
+      <option value="3.75">3.75</option>
+      <option value="4.00">4.00</option>
+      <option value="5.00">5.00</option>
+    </select>
+    <button onclick="assignGrade('${subjectCode}')">Save</button>
+    <button onclick="closeModal()">Cancel</button>
+  `;
+  modal.appendChild(modalContent);
+  document.body.appendChild(modal);
+}
+
+// Close Modal
+function closeModal() {
+  const modal = document.querySelector('div[style*="position: fixed"]'); // Find the modal by its inline style
+  if (modal) {
+    modal.remove(); // Remove the modal from the DOM
+  }
+}
+
+// Get the student document reference based on studentId
+async function getStudentRefById(studentId) {
+  console.log('Fetching student with ID:', studentId);
+
+  // Use a collection group query to search within `StudentData` across all parent documents
+  const snapshot = await db.collectionGroup('StudentData')
+    .where('studentId', '==', studentId)
+    .get();
+
+  if (!snapshot.empty) {
+    console.log('Student found:', snapshot.docs[0].data());
+    return snapshot.docs[0].ref; // Return the first match
+  }
+
+  console.error('No student found with ID:', studentId);
+  throw new Error('Student not found');
+}
+
+
+// Assign Grade to Subject
+async function assignGrade(subjectCode) {
+  const gradeInput = document.getElementById('grade-input');
+  const grade = gradeInput.value.trim();
+
+  if (grade === '') {
+    alert('Please enter a grade');
+    return;
+  }
+
+  if (!selectedStudentId) {
+    alert('No student selected');
+    return;
+  }
+
+  try {
+    const studentRef = await getStudentRefById(selectedStudentId); // Use the global `selectedStudentId`
+    await updateStudentGrade(studentRef, subjectCode, grade);
+    console.log('Grade updated successfully');
+  } catch (error) {
+    console.error('Error updating grade:', error);
+  }
+
+  closeModal(); // Close modal after grade is updated
+}
+
+
+
+// Update Grade in Firestore
+async function updateStudentGrade(studentRef, subjectCode, grade) {
+  const studentDoc = await studentRef.get();
+  const studentData = studentDoc.data();
+
+  const curriculumData = studentData.curriculumData;
+  let subjectUpdated = false;
+
+  // Remarks logic
+  let remarks = '';
+  if (grade >= 1.00 && grade <= 3.00) {
+    remarks = 'Passed';
+  } else if (grade >= 3.25 && grade <= 5.00) {
+    remarks = 'Failed';
+  }
+
+  for (const year in curriculumData.subjects) {
+    for (const semester in curriculumData.subjects[year]) {
+      const subjects = curriculumData.subjects[year][semester];
+      for (let i = 0; i < subjects.length; i++) {
+        const subject = subjects[i];
+        if (subject.subjectId === subjectCode) {
+          subject.grade = grade; // Store the grade
+          subject.remarks = remarks; // Update remarks based on the grade range
+          subjectUpdated = true;
+          break;
+        }
+      }
+      if (subjectUpdated) break;
+    }
+    if (subjectUpdated) break;
+  }
+
+  if (subjectUpdated) {
+    await studentRef.update({
+      'curriculumData.subjects': curriculumData.subjects, // Save updated subjects map
+    });
+  } else {
+    throw new Error(`Subject with code ${subjectCode} not found in curriculum`);
+  }
+}
