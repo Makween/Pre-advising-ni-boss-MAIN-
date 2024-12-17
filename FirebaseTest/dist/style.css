@@ -1,0 +1,312 @@
+/* General Config */
+
+body {
+    margin: 20px;
+    padding: 20px;
+    background-color: #f4f4f4;
+    font-family: 'Montserrat', sans-serif;
+    background-color: #ccc;
+}
+
+h1,
+h2 {
+    color: #333;
+}
+
+
+h1 {
+    text-align: center;
+    font-size: 30px;
+} 
+
+button.normal {
+    font-size: 14px;
+    font-weight: 600;
+    padding: 15px 30px;
+    color: black;
+    background-color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    border: none;
+    outline: none;
+    transition: 0.5s;
+}
+
+button.white {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 11px 18px;
+    color: #fff;
+    background-color: transparent;
+    cursor: pointer;
+    border: 1px solid #fff;
+    outline: none;
+    transition: 0.2s;
+}
+
+/* ------------------- */
+
+/* CREATE CURRICULUM */
+/* Manage Students Button */
+.button-container {
+    display: flex;
+    justify-content: flex-end;
+}
+.button-container button {
+    font-family: Montserrat;
+    font-weight: 500;
+    color: #111;
+    background-color: #e4ae1a;    
+}
+.button-container button:hover {
+    color: #fff;
+    background-color: #274c77;    
+}
+/* Add New Course, Save, Cancel Button */
+#add-course-btn,
+#cancel-course-btn,
+#save-course-btn,
+#show-add-subject-form {
+    font-family: Montserrat;
+    font-weight: 500;
+    padding: 10px 15px ;
+    border: none;
+    border-radius: 3px;
+    color: #fff;
+    cursor: pointer;
+    background: -webkit-linear-gradient(120deg, #274c77, #274c77);
+}
+#add-course-btn:hover,
+#cancel-course-btn:hover,
+#save-course-btn:hover,
+#show-add-subject-form:hover {
+    color: #fff;
+    background: -webkit-linear-gradient(120deg, #e4ae1a, #274c77);
+}
+
+/* ADD SUBJECT TO CURRICULUM */
+/* Add subject and cancel button */
+#add-subject,
+#close-add-subject {
+    font-family: Montserrat;
+    font-weight: 500;
+    padding: 10px 15px ;
+    border: none;
+    border-radius: 3px;
+    color: #fff;
+    cursor: pointer;
+    background: -webkit-linear-gradient(120deg, #274c77, #274c77);
+}
+#add-subject:hover,
+#close-add-subject:hover {
+    color: #fff;
+    background: -webkit-linear-gradient(120deg, #e4ae1a, #274c77);
+}
+
+/* ------------------- */
+
+/* CURRICULUM MODULE */
+/* Add subject button */
+#add-subject-btn {
+    margin: 10px 0px 10px 0px;
+    color: #fff;
+    background: -webkit-linear-gradient(120deg, #274c77, #274c77);
+}
+#add-subject-btn:hover {
+    color: #fff;
+    background: -webkit-linear-gradient(120deg, #e4ae1a, #274c77);
+}
+/* ------------------- */
+
+
+/* INPUT, SELECT BOXES, LABELS */
+input,
+select {
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
+input {
+    width: calc(100% - 20px);
+}
+select {
+    width: 100%;
+}
+label {
+    margin: 5px 5px 5px 5px;
+    display: block;
+    margin-bottom: 5px;
+}
+
+/* ------------------- */
+
+/* FORM */
+
+/* ------------------- */
+form {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #fff;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.floating-form-container {
+    position: fixed;
+    /* or absolute */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #fff;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    width: 500px;
+    max-width: 90%;
+    visibility: visible;
+    z-index: 1001;
+}
+
+.floating-form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.close-btn {
+    cursor: pointer;
+    border: none;
+    background-color: transparent;
+    font-size: 20px;
+    padding: 5px;
+}
+
+/* ==== */
+
+/* Table Config */
+table {
+    font-family: Montserrat;
+    font-weight: 500;
+}
+
+#curriculum-table {
+    border-collapse: collapse;
+    width: 100%
+}
+
+#curriculum-table th{
+    background-color: #dbc587;
+    font-weight: 500;
+}
+
+#curriculum-table td{
+    font-weight: 100;
+}
+
+#curriculum-table th, #curriculum-table td {
+    font-family: Montserrat;
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+}
+
+
+#curriculum-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+#curriculum-table tr {
+    background-color: #fff;
+}
+
+#curriculum-table td button {
+    font-family: Montserrat;
+    font-size: 14px;
+    font-weight: 500;
+    margin: 3px;
+    padding: 10px 10px;
+    color: #fff;
+    background: -webkit-linear-gradient(120deg, #274c77, #274c77);
+    border-radius: 4px;
+    cursor: pointer;
+    border: none;
+    outline: none;
+    transition: 0.5s;
+}
+#curriculum-table td button:hover {
+    color: #fff;
+    background: -webkit-linear-gradient(120deg, #e4ae1a, #274c77);
+}
+
+
+/* curriculum-content-container */
+
+#curriculum-content-container  {
+    background-color: #f9f9f9;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+#curriculum-content-container h3 {
+    font-family: Montserrat;
+    font-weight: 500;
+}
+
+#subjects-table-container table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+#subjects-table-container th, #subjects-table-container td {
+    border: 1px solid #111;
+    padding: 10px;
+    text-align: left;
+}
+
+#subjects-table-container th {
+    font-family: Montserrat;
+    font-weight: 500;
+    color: #fff;
+    background-color: #688cb4;
+}
+
+#subjects-table-container tr:nth-child(even) {
+    background-color: #f0ead9;
+}
+#subjects-table-container tr:nth-child(odd) {
+    background-color: #d3deeb;
+}
+
+#subjects-table-container tr:hover {
+    background-color: #f2f2f2;
+}
+
+#add-subject-form {
+    background-color: #fff;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+#close-add-subject-form {
+    font-size: 24px;
+    margin-right: 10px;
+}
+
+#close-add-subject-form:hover {
+    color: #f44336;
+}
+
+#cancel-add-subject-btn {
+    background-color: #f44336;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-left: 10px;
+}

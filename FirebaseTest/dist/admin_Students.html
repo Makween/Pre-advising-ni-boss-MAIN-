@@ -4,136 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel - Students</title>
-    <style>
-        bodybody {
-  font-family: Arial, sans-serif;
-  margin: 20px;
-  background-color: #f4f4f4;
-}
-
-h1, h2 {
-  color: #333;
-}
-
-form {
-  background: white;
-  padding: 20px;
-  border-radius: 5px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
-}
-
-select, input[type="text"], input[type="checkbox"], input[type="number"] {
-  margin: 10px 0;
-  font-size: 16px;
-  padding: 10px;
-  width: 100%;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-
-button {
-  padding: 10px 20px;
-  font-size: 16px;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  width: 100%;
-}
-
-button:hover {
-  background-color: #45a049;
-}
-
-.subjects-container {
-  display: flex;
-  justify-content: space-between;
-  margin: 10px 0;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: #fafafa;
-}
-
-.checkbox-container {
-  display: flex;
-  flex-direction: column;
-  margin: 10px;
-  width: 100%;
-}
-
-.checkbox-item {
-  display: flex;
-  align-items: center;
-  margin: 5px 0;
-  padding: 5px 0;
-}
-
-input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
-  margin-right: 10px;
-  cursor: pointer;
-}
-
-@media (max-width: 600px) {
-  .checkbox-container {
-    width: 100%;
-  }
-}
-
-.subject-list {
-  flex: 1;
-  margin: 0 10px;
-}
-
-.flex-container {
-  display: flex;
-  justify-content: space-between;
-}
-
-.subject-column {
-  flex: 1;
-  margin-right: 20px;
-}
-
-.subject-column:last-child {
-  margin-right: 0;
-}
-
-.academic-year-container {
-  display: flex;
-  justify-content: space-between;
-  margin: 10px 0;
-}
-
-.academic-year-input {
-  width: 45%;
-}
-
-#options-form {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background-color: #fff;
-  padding: 20px;
-  border: 1px solid #ddd;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-  width: 500px;
-}
-
-.hidden {
-  display: none;
-}
-
-#options-form.show {
-  display: block;
-}
-    </style>
-
     <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-auth.js"></script>
@@ -321,19 +191,40 @@ window.addEventListener('load', function () {
 
     </script>
 </head>
+
+<link rel="preconnect" href="https://fonts.gstatic.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bowlby+One+SC&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style_student.css">
+<script src="admin_Students.js"></script>
+
 <body>
   <h1>Admin Panel for Students [STUDENT MODULE]</h1>
 
-  <button id="open-options-btn">Options</button>
+  <div class="admin-btn-container">
+    <button id="admin-btn" class="normal" onclick="window.location.href='admin.html'">Admin Panel</button>
+  </div>
+
+  <hr>
+
+  <div class="option-btn-container">
+    <button id="open-options-btn" class="normal">Options</button>
+  </div>
   
 <!-- Options floating form -->
 <div id="options-form" class="hidden">
   <form id="options-form-content">
     <label for="student-id-format">Student ID Format (e.g., 2020-):</label>
     <input type="text" id="student-id-format" placeholder="YYYY-" required>
-    <button id="save-format-btn">Save</button>
+    <div id="option-save-btn">
+      <button id="save-format-btn" class="normal">Save</button>
+    </div>
   </form>
-  <button id="close-options-btn">Close</button>
+    <div id="option-close-btn">
+      <button id="close-options-btn" class="normal">Close</button>
+    </div>
 </div>
   
   <form id="add-student-form" onsubmit="addStudent(event); return false;">
@@ -373,10 +264,10 @@ window.addEventListener('load', function () {
       <input type="number" id="academic-year-end" class="academic-year-input" required>
     </div>
     
-    <button type="submit">Add Student</button>
+    <button type="submit" class="normal">Add Student</button>
   </form>
 
-  <form id="student-curriculum-table" style="width: 80%; margin: auto; font-family: Arial, sans-serif;">
+  <form id="student-curriculum-table">
     <h2 style="text-align: center;">Student Curriculum Viewer</h2>
     <label for="student-search" style="display: block; margin-bottom: 10px;">Search Student:</label>
     <input 
@@ -384,19 +275,17 @@ window.addEventListener('load', function () {
         id="student-search" 
         placeholder="Enter student name..." 
         autocomplete="off" 
-        style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 5px;"
     />
     <ul 
         id="search-results" 
         style="list-style: none; margin: 0; padding: 0; border: 1px solid #ccc; max-height: 150px; overflow-y: auto; display: none; position: absolute; z-index: 1; background: white; width: calc(80% - 2px);">
     </ul>
 
-
-    <div id="student-info" style="margin-top: 20px; padding: 10px; background: #f9f9f9; border-radius: 5px; box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);">
+    <div id="student-info">
         <!-- Student information will be displayed here -->
     </div>
-    <table id="curriculum-table" style="width: 100%; border-collapse: collapse; margin-top: 20px; box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);">
-        <thead style="background-color: #007BFF; color: white;">
+    <table id="curriculum-table">
+        <thead>
           <tr>
             <th style="padding: 10px; border: 1px solid #ddd;">Subject Code</th>
             <th style="padding: 10px; border: 1px solid #ddd;">Subject Name</th>

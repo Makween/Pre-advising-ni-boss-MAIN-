@@ -1100,192 +1100,24 @@ function getCurriculumId() {
   }
 }
     </script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            padding: 20px;
-            background-color: #f4f4f4;
-        }
-
-        h1,
-        h2 {
-            color: #333;
-        }
-
-        form {
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #fff;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-        }
-
-        input,
-        select {
-            width: calc(100% - 20px);
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ccc;
-            border-radius: 3px;
-        }
-
-        button {
-            padding: 10px 15px;
-            border: none;
-            border-radius: 3px;
-            background-color: #28a745;
-            color: white;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background-color: #218838;
-        }
-
-        .button-container {
-            text-align: right;
-            /* Aligns the button to the right */
-            margin-bottom: 20px;
-            /* Adds some space below the button */
-        }
-
-        .button-container button {
-            background-color: #007bff;
-            /* Blue color for the new button */
-        }
-
-        .button-container button:hover {
-            background-color: #0069d9;
-            /* Darker blue on hover */
-        }
-
-        .floating-form-container {
-            position: fixed;
-            /* or absolute */
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: #fff;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 500px;
-            max-width: 90%;
-            visibility: visible;
-            z-index: 1001;
-        }
-
-        .floating-form-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .close-btn {
-            cursor: pointer;
-            border: none;
-            background-color: transparent;
-            font-size: 20px;
-            padding: 5px;
-        }
-
-        #curriculum-table {
-    border-collapse: collapse;
-    width: 100%;
-}
-#curriculum-table th, #curriculum-table td {
-    border: 1px solid #ddd;
-    padding: 10px;
-    text-align: left;
-}
-
-#curriculum-table th {
-    background-color: #f0f0f0;
-}
-
-#curriculum-table tr:nth-child(even) {
-    background-color: #f9f9f9;
-}
-
-#curriculum-table tr:hover {
-    background-color: #f2f2f2;
-}
-
-#curriculum-content-container  {
-    background-color: #f9f9f9;
-    padding: 20px;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-}
-
-#subjects-table-container table {
-    border-collapse: collapse;
-    width: 100%;
-}
-
-#subjects-table-container th, #subjects-table-container td {
-    border: 1px solid #ddd;
-    padding: 10px;
-    text-align: left;
-}
-
-#subjects-table-container th {
-    background-color: #f0f0f0;
-}
-
-#subjects-table-container tr:nth-child(even) {
-    background-color: #f9f9f9;
-}
-
-#subjects-table-container tr:hover {
-    background-color: #f2f2f2;
-}
-
-#add-subject-form {
-    background-color: #fff;
-    padding: 20px;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-}
-
-#close-add-subject-form {
-    font-size: 24px;
-    margin-right: 10px;
-}
-
-#close-add-subject-form:hover {
-    color: #f44336;
-}
-
-#cancel-add-subject-btn {
-    background-color: #f44336;
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    margin-left: 10px;
-}
-
-
-    </style>
 </head>
+
+<link rel="preconnect" href="https://fonts.gstatic.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bowlby+One+SC&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
 
 <body>
     <h1>Admin Panel</h1>
 
     <!-- Link to Admin Students Page -->
     <div class="button-container">
-        <button onclick="window.location.href='admin_students.html'">Manage Students</button>
+        <button class="normal" onclick="window.location.href='admin_students.html'">Manage Students</button>
     </div>
+
+    <hr>
 
     <!-- Create Curriculum Section -->
     <h2>Create Curriculum</h2>
@@ -1305,9 +1137,9 @@ function getCurriculumId() {
             <!-- dynamically populate options from existing courses -->
         </select>
         <input type="text" id="curriculum-course-other" placeholder="Specify course" style="display:none;" />
-        <button id="add-course-btn">Add New Course</button>
-        <button type="button" id="save-course-btn">Save</button>
-            <button id="cancel-course-btn">Cancel</button>
+        <button id="add-course-btn" class="normal">Add New Course</button>
+        <button type="button" id="save-course-btn" class="normal">Save</button>
+            <button id="cancel-course-btn" class="normal">Cancel</button>
 
        
         <label for="curriculum-eduyear">Educational Year:</label>
@@ -1326,6 +1158,8 @@ function getCurriculumId() {
 
         <button type="button" id="show-add-subject-form">Create Curriculum</button>
     </form>
+    
+    <hr>
 
     <h2>Add subject to Curriculum</h2>
     <div id="add-subject-section">
@@ -1367,18 +1201,19 @@ function getCurriculumId() {
                 <!-- this should be automatic and not editable it should add the LEC + Lab Unit and show that to the total Units field -->
                 <input type="number" id="total-units" min="1" required />
 
-                <button type="submit" id="add-subject">Add Subject</button>
-                <button type="button" id="close-add-subject">Cancel</button>
+                <button type="submit" id="add-subject" class="normal">Add Subject</button>
+                <button type="button" id="close-add-subject" class="normal">Cancel</button>
             </form>
             <div>
+              <hr>
                 <h2>Curriculum Module</h2>
                 <div id="curriculum-module">
                     <label>Curriculum Search</label>
-                    <div id="search-curriculum" style="width: 300px; margin-top: 10px;">
+                    <div id="search-curriculum">
                         <input type="search" id="search-curriculum-input" placeholder="Search Curriculum...">
-                        <button id="add-subject-btn" style="margin-top: 20px; padding: 10px 20px; background-color: #4CAF50; color: #fff; border: none; border-radius: 5px; cursor: pointer;">Add Subject</button>
+                        <button id="add-subject-btn" class="normal">Add Subject</button>
                     </div>
-                    <div id="curriculum-table-container" style="margin-top: 20px;">
+                    <div id="curriculum-table-container">
                         <table id="curriculum-table">
                             <thead>
                                 <tr>

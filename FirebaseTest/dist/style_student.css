@@ -1,0 +1,357 @@
+/* General Config */
+
+body {
+    margin: 20px;
+    padding: 20px;
+    background-color: #f4f4f4;
+    font-family: 'Montserrat', sans-serif;
+    background-color: #ccc;
+}
+
+h1,
+h2 {
+    color: #333;
+}
+
+
+h1 {
+    text-align: center;
+    font-size: 30px;
+} 
+
+button.normal {
+    font-size: 14px;
+    font-weight: 600;
+    padding: 15px 30px;
+    color: black;
+    background-color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    border: none;
+    outline: none;
+    transition: 0.5s;
+}
+
+button.white {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 11px 18px;
+    color: #fff;
+    background-color: transparent;
+    cursor: pointer;
+    border: 1px solid #fff;
+    outline: none;
+    transition: 0.2s;
+}
+
+/* ------------------- */
+
+/* Admin Panel for Students [STUDENT MODULE] */
+/* Admin Panel Button */
+.admin-btn-container {
+    display: flex;
+    justify-content: flex-end;
+}
+#admin-btn {
+    font-family: Montserrat;
+    font-weight: 500;
+    margin: 10px 0px 10px 10px;
+    color: #111;
+    background-color: #e4ae1a;
+}
+#admin-btn:hover {
+    color: #fff;
+    background-color: #274c77;
+}
+
+/* Options Button and Add Students Button */
+.option-btn-container {
+    display: flex;
+    justify-content: center;
+}
+#open-options-btn,
+#add-student-form button {
+    margin: 10px 10px 10px 10px;
+    width: 25%;
+    font-family: Montserrat;
+    font-weight: 500;
+    padding: 10px 15px ;
+    border: none;
+    border-radius: 3px;
+    color: #fff;
+    cursor: pointer;
+    background: -webkit-linear-gradient(120deg, #274c77, #274c77);
+}
+#open-options-btn:hover,
+#add-student-form button:hover {
+    color: #fff;
+    background: -webkit-linear-gradient(120deg, #e4ae1a, #274c77);
+}
+
+/* Floating Option Form */
+#save-format-btn,
+#close-options-btn {
+    color: #fff;
+    background: -webkit-linear-gradient(120deg, #274c77, #274c77);
+}
+#save-format-btn:hover,
+#close-options-btn:hover {
+    color: #fff;
+    background: -webkit-linear-gradient(120deg, #e4ae1a, #274c77);
+}
+#option-close-btn {
+    display: flex;
+    justify-content: flex-end;
+}
+#option-save-btn {
+    display: flex;
+    justify-content: flex-start;
+}
+
+/* Option button Animation Config */
+#options-form {
+    opacity: 0;
+    transform: scale(0.8);
+    pointer-events: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  
+  /* Visible state */
+  #options-form.show {
+    pointer-events: auto;
+    animation: fadeInScale 0.4s ease forwards
+  }
+  
+  /* Keyframe animation for smooth opening */
+  @keyframes fadeInScale {
+    0% {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.8);
+    }
+    100% {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+  
+  /* Optional closing animation */
+  #options-form.hide {
+    animation: fadeOutScale 0.4s ease forwards;
+  }
+  
+  /* Keyframe animation for smooth closing */
+  @keyframes fadeOutScale {
+    0% {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.8);
+    }
+  }
+  /* =========================================== */
+  
+
+/* ADD SUBJECT TO CURRICULUM */
+/* Add subject and cancel button */
+#add-subject,
+#close-add-subject {
+    font-family: Montserrat;
+    font-weight: 500;
+    padding: 10px 15px ;
+    border: none;
+    border-radius: 3px;
+    color: #fff;
+    cursor: pointer;
+    background: -webkit-linear-gradient(120deg, #274c77, #274c77);
+}
+#add-subject:hover,
+#close-add-subject:hover {
+    color: #fff;
+    background: -webkit-linear-gradient(120deg, #e4ae1a, #274c77);
+}
+
+/* ------------------- */
+
+/* INPUT, SELECT BOXES, LABELS */
+input,
+select {
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
+input {
+    width: calc(100% - 20px);
+}
+select {
+    width: 100%;
+}
+label {
+    margin: 5px 5px 5px 5px;
+    display: block;
+    margin-bottom: 5px;
+}
+
+/* FORM */
+form {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #fff;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* ------------------- */
+
+#student-info {
+    margin-top: 20px; 
+    padding: 10px; 
+    background: #f9f9f9; 
+    border-radius: 5px; 
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+#student-info strong {
+    font-family: Montserrat;
+    font-weight: bold;
+}
+
+#student-info p {
+    /* text-align: center;  */
+    font-family: Montserrat;
+    font-weight: 400;
+}
+
+#curriculum-table {
+    width: 100%; 
+    border-collapse: collapse; 
+    margin-top: 20px; 
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+#curriculum-table th {
+    font-family: Montserrat;
+    font-weight: 500;
+    background-color: #274c77;
+    color: #fff;
+}
+
+#curriculum-table tr:nth-child(even) {
+    background-color: #f0ead9;
+}
+#curriculum-table tr:nth-child(odd) {
+    background-color: #d3deeb;
+}
+
+#curriculum-table button {
+    font-family: Montserrat;
+    font-weight: 500;
+    background: -webkit-linear-gradient(120deg, #3b75b8, #3b75b8);
+    color: #fff;
+}
+#curriculum-table button:hover {
+    background: -webkit-linear-gradient(120deg, #e4ae1a, #274c77);
+    color: #fff;
+}
+
+/* ================================================================ */
+
+/* select, input[type="text"], input[type="checkbox"], input[type="number"] {
+margin: 10px 0;
+font-size: 16px;
+padding: 10px;
+width: 100%;
+border: 1px solid #ccc;
+border-radius: 4px;
+} */
+
+.subjects-container {
+display: flex;
+justify-content: space-between;
+margin: 10px 0;
+padding: 10px;
+border: 1px solid #ddd;
+border-radius: 4px;
+background: #fafafa;
+}
+
+.checkbox-container {
+display: flex;
+flex-direction: column;
+margin: 10px;
+width: 100%;
+}
+
+.checkbox-item {
+display: flex;
+align-items: center;
+margin: 5px 0;
+padding: 5px 0;
+}
+
+input[type="checkbox"] {
+width: 20px;
+height: 20px;
+margin-right: 10px;
+cursor: pointer;
+}
+
+@media (max-width: 600px) {
+.checkbox-container {
+width: 100%;
+}
+}
+
+.subject-list {
+flex: 1;
+margin: 0 10px;
+}
+
+.flex-container {
+display: flex;
+justify-content: space-between;
+}
+
+.subject-column {
+flex: 1;
+margin-right: 20px;
+}
+
+.subject-column:last-child {
+margin-right: 0;
+}
+
+.academic-year-container {
+display: flex;
+justify-content: space-between;
+margin: 10px 0;
+}
+
+.academic-year-input {
+width: 45%;
+}
+
+#options-form {
+position: fixed;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+background-color: #fff;
+padding: 20px;
+border: 1px solid #ddd;
+box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+width: 500px;
+}
+
+.hidden {
+display: none;
+}
+
+#options-form.show {
+display: block;
+}

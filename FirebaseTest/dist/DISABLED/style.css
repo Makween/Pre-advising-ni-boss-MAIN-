@@ -1,0 +1,261 @@
+/* General Config */
+
+body {
+    font-family: Arial, sans-serif; 
+    margin: 20px;
+    background-color: #ccc;
+}
+
+h1 {
+    text-align: center;
+    font-size: 30px;
+} 
+
+h2 {
+    color: #111;
+}
+
+button.normal {
+    font-size: 14px;
+    font-weight: 600;
+    padding: 15px 30px;
+    color: black;
+    background-color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    border: none;
+    outline: none;
+    transition: 0.2s;
+}
+
+button.white {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 11px 18px;
+    color: #fff;
+    background-color: transparent;
+    cursor: pointer;
+    border: 1px solid #fff;
+    outline: none;
+    transition: 0.2s;
+}
+
+/* ------------------- */
+
+/* admin_Students and admin Page */
+
+.button-container button.normal{
+    color: #fff;
+    background-color: #02277f;
+}
+
+.button-container button.normal:hover{
+    color: #111;
+    background-color: #ffc500;
+}
+
+form {
+    background: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+form button.normal {
+    width: 100%;
+    color: #fff;
+    background-color: #02277f;
+}
+
+form button.normal:hover {
+    color: #111;
+    background-color: #ffc500;
+}
+
+select, input {
+    display: flex;
+    justify-content: flex-start;
+    flex-direction: column;
+
+    margin: 10px 0;
+    font-size: 16px;
+    padding: 10px 0 10px 0;
+    width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* ------------------- */
+
+/* fetchcourse page */
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    font-size: 16px;
+    color: #111;
+}
+
+table th {
+    background-color: #02277f;
+    color: white;
+    font-weight: bold;
+    padding: 12px;
+    text-align: left;
+}
+
+table td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd; /* Border for rows */
+}
+
+table th, table td {
+    border-radius: 0;
+}
+
+table th:first-child {
+    border-top-left-radius: 5px; /* Top-left corner */
+}
+
+table th:last-child {
+    border-top-right-radius: 5px; /* Top-right corner */
+}
+
+table tr:last-child td:first-child {
+    border-bottom-left-radius: 5px; /* Bottom-left corner */
+}
+
+table tr:last-child td:last-child {
+    border-bottom-right-radius: 5px; /* Bottom-right corner */
+}
+
+
+/* Alternate row colors */
+table tr:nth-child(even) {
+    background-color: #fff;
+}
+
+table tr:nth-child(odd) {
+    background-color: #dedede;
+}
+
+
+table tr:hover {
+    background-color: #ffc500;
+}
+
+.fetchbutton button.normal {
+    color: #fff;
+    background-color: #02277f;
+}
+
+.fetchbutton button.normal:hover {
+    background-color: #ffc500;
+    color: #111;
+}
+
+/* ------------------- */
+
+/* unknown */
+
+.subjects-container {
+    display: flex;
+    justify-content: space-between;
+    margin: 10px 0;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fafafa;
+}
+
+.checkbox-container {
+    display: flex;
+    flex-direction: column;
+    margin: 10px;
+    width: 100%;
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    margin: 5px 0;
+    padding: 5px 0;
+}
+
+input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+    cursor: pointer;
+}
+
+/* unknown */
+
+/* ------------------- */
+/* ------------------- */
+/* ------------------- */
+/* ------------------- */
+/* ------------------- */
+/* ------------------- */
+/* ------------------- */
+
+/* unknown Phone Config */
+
+@media (max-width: 600px) {
+    .checkbox-container {
+        width: 100%;
+    }
+}
+
+.subject-list {
+    flex: 1;
+    margin: 0 10px;
+}
+
+.flex-container {
+    display: flex;
+    justify-content: space-between;
+}
+
+.subject-column {
+    flex: 1;
+    margin-right: 20px;
+}
+
+.subject-column:last-child {
+    margin-right: 0;
+}
+
+/* ------------------- */
+
+
+/* fetchcourse config */
+
+@media (max-width: 600px) {
+    table, thead, tbody, th, td, tr {
+        display: block; /* Stack elements on small screens */
+    }
+
+    /* Styling for header and data rows on small screens */
+    table tr {
+        margin-bottom: 15px;
+    }
+
+    /* Display header cells as labels for each cell */
+    table td {
+        text-align: right;
+        padding-left: 50%; /* Creates space for labels */
+        position: relative;
+    }
+
+    table td:before {
+        content: attr(data-label); /* Show labels for each cell */
+        position: absolute;
+        left: 0;
+        width: 45%;
+        padding-left: 15px;
+        font-weight: bold;
+    }
+}
