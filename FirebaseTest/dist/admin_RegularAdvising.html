@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Pre-Advising</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        form {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            margin: 10px 0;
+            font-size: 16px;
+            padding: 10px;
+            width: 100%;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        #search-results {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            border: 1px solid #ccc;
+            max-height: 150px;
+            overflow-y: auto;
+            display: none;
+            position: absolute;
+            z-index: 1;
+            background: white;
+            width: calc(100% - 2px);
+        }
+        #search-results li {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            cursor: pointer;
+        }
+        #search-results li:hover {
+            background-color: #f1f1f1;
+        }
+        #student-info {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 5px;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+    <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-firestore.js"></script>
+</head>
+<body>
+    <h1>Pre-Advising Module</h1>
+    <form id="add-student-form">
+        <label for="student-id">Student ID:</label>
+        <input type="text" id="student-id" required>
+        
+        <label for="student-name">Name (Last Name, First Name):</label>
+        <input type="text" id="student-name" required>
+    </form>
+
+    <form id="student-curriculum-table">
+        <h2>Search Student</h2>
+        <label for="student-search">Search Student:</label>
+        <input 
+            type="text" 
+            id="student-search" 
+            placeholder="Enter student name or ID..." 
+            autocomplete="off"
+        />
+        <ul id="search-results"></ul>
+        <div id="student-info"></div>
+    </form>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-K6Hfx5jrTvnilwha29ceKov0PC2kII0",
+            authDomain: "pre-advisingdb.firebaseapp.com",
+            projectId: "pre-advisingdb",
+            storageBucket: "pre-advisingdb.appspot.com",
+            messagingSenderId: "879799797410",
+            appId: "1:879799797410:web:9a52fbf15ce59b8bda39fb",
+            measurementId: "G-MSMWJ52KBW"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const searchInput = document.getElementById("student-search");
+        const searchResults = document.getElementById("search-results");
+        const studentInfoDiv = document.getElementById("student-info");
+
+        // Generate search keywords for a given name
+        function generateKeywords(text) {
+            const keywords = [];
+            let current = "";
+            text.toLowerCase().split("").forEach(char => {
+                current += char;
+                keywords.push(current);
+            });
+            return keywords;
+        }
+
+        // Populate Student Info
+        function populateStudentInfo(student) {
+            studentInfoDiv.innerHTML = `
+                <p><strong>ID:</strong> ${student.studentId}</p>
+                <p><strong>Name:</strong> ${student.fullName}</p>
+                <p><strong>Status:</strong> ${student.status || "N/A"}</p>
+                <p><strong>Year Level:</strong> ${student.yearLevel || "N/A"}</p>
+            `;
+            searchResults.style.display = "none"; // Hide suggestions
+        }
+
+        // Fetch matching students as the user types
+        searchInput.addEventListener("input", async (e) => {
+            const query = e.target.value.trim().toLowerCase();
+            if (!query) {
+                searchResults.style.display = "none";
+                return;
+            }
+
+            try {
+                const snapshot = await db.collection("Students")
+                    .where("searchKeywords", "array-contains", query)
+                    .limit(10)
+                    .get();
+
+                if (snapshot.empty) {
+                    searchResults.style.display = "none";
+                    return;
+                }
+
+                searchResults.innerHTML = ""; // Clear old results
+                searchResults.style.display = "block";
+
+                snapshot.forEach(doc => {
+                    const student = doc.data();
+                    const li = document.createElement("li");
+                    li.textContent = `${student.studentId} - ${student.fullName}`;
+                    li.addEventListener("click", () => populateStudentInfo(student));
+                    searchResults.appendChild(li);
+                });
+            } catch (error) {
+                console.error("Error fetching students:", error);
+            }
+        });
+
+        // Helper: Add searchKeywords to all existing students in Firestore
+        async function addSearchKeywordsToStudents() {
+            const studentsSnapshot = await db.collection("Students").get();
+            studentsSnapshot.forEach(async (doc) => {
+                const student = doc.data();
+                const searchKeywords = generateKeywords(student.fullName || "") // Full name
+                    .concat(generateKeywords(student.studentId || "")); // Student ID
+                await db.collection("Students").doc(doc.id).update({ searchKeywords });
+            });
+            console.log("Search keywords added to all students.");
+        }
+
+        // Call the helper function (optional: only run once to populate keywords)
+        // Uncomment the line below if you want to populate `searchKeywords` for existing students.
+        // addSearchKeywordsToStudents();
+    </script>
+</body>
+</html>
