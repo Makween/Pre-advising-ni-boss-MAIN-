@@ -529,68 +529,76 @@ window.addEventListener('load', function () {
 
 
       // Helper Function: Parse Nested Subjects
-      function parseCurriculumSubjects(subjectsMap) {
-          const subjects = [];
-      
-          Object.keys(subjectsMap).forEach(year => {
-              const yearData = subjectsMap[year];
-              Object.keys(yearData).forEach(semester => {
-                  const semesterSubjects = yearData[semester];
-                  semesterSubjects.forEach(subject => {
-                      subjects.push({
-                          subjectCode: subject.subjectId || 'N/A',
-                          subjectName: subject.subjectName || 'N/A',
-                          lec: subject.lec || 'N/A',
-                          lab: subject.labUnit || 'N/A',
-                          totalUnits: subject.totalUnits || 'N/A',
-                          prerequisites: (subject.preReq || []).join(', ') || 'None',
-                          year: year,
-                          semester: semester,
-                          status: subject.status || 'N/A',
-                      });
-                  });
-              });
-          });
-      
-          return subjects;
-      }
+function parseCurriculumSubjects(subjectsMap) {
+    const subjects = [];
+
+    Object.keys(subjectsMap).forEach(year => {
+        const yearData = subjectsMap[year];
+        Object.keys(yearData).forEach(semester => {
+            const semesterSubjects = yearData[semester];
+            semesterSubjects.forEach(subject => {
+                subjects.push({
+                    subjectCode: subject.subjectId || 'N/A',
+                    subjectName: subject.subjectName || 'N/A',
+                    lec: subject.lec || 'N/A',
+                    lab: subject.labUnit || 'N/A',
+                    totalUnits: subject.totalUnits || 'N/A',
+                    prerequisites: subject.prerequisites || [], // Use actual array
+                    year: year,
+                    semester: semester,
+                    status: subject.status || 'N/A',
+                });
+            });
+        });
+    });
+    
+
+    return subjects;
+}
+
+
       
       // Save or Update Student's Curriculum in the Database (Preserving Grades and Remarks)
-async function saveOrUpdateStudentCurriculum(student, subjects, curriculumData) {
+      async function saveOrUpdateStudentCurriculum(student, subjects, curriculumData) {
     try {
-        const studentRef = db.collection('Students').doc(student.curriculum).collection('StudentData').doc(student.id);
-        
-        // Fetch current student's data to get the existing curriculum with grades and remarks
+        const studentRef = db
+            .collection('Students')
+            .doc(student.curriculum)
+            .collection('StudentData')
+            .doc(student.id);
+
+        // Fetch current student's data to retain existing grades and remarks
         const studentDoc = await studentRef.get();
-        const currentData = studentDoc.data();
+        const currentData = studentDoc.exists ? studentDoc.data() : {};
         const currentCurriculum = currentData.curriculumData || {};
 
-        // Prepare curriculum data to save, merging the new subjects with the existing ones
+        // Prepare curriculum data to save
         const curriculumDataToSave = {
-            curriculumCode: student.curriculum, 
-            curriculumCourse: student.course,
-            curriculumEndYear: curriculumData.curriculumEndYear, 
-            curriculumName: student.program,
-            curriculumStartYear: curriculumData.curriculumStartYear, 
-            curriculumTitle: student.program,
-            subjects: {} // To hold the year/semester/subject structure
+            curriculumCode: curriculumData.curriculumCode, // Correct mapping
+            curriculumCourse: curriculumData.curriculumCourse, // Correct mapping
+            curriculumEndYear: curriculumData.curriculumEndYear, // Correct mapping
+            curriculumName: curriculumData.curriculumName, // Correct mapping
+            curriculumStartYear: curriculumData.curriculumStartYear, // Correct mapping
+            curriculumTitle: curriculumData.curriculumTitle, // Correct mapping
+            subjects: {}, // Initialize to hold the year/semester/subject structure
         };
 
-        // Merge the new subjects with existing subjects in the current curriculum
+        // Merge the new subjects with existing subjects, retaining grades and remarks
         subjects.forEach(subject => {
-            // Check if the subject exists in the current curriculum
-            const yearSubjects = currentCurriculum.subjects && currentCurriculum.subjects[subject.year] ? currentCurriculum.subjects[subject.year] : {};
+            const yearSubjects =
+                currentCurriculum.subjects && currentCurriculum.subjects[subject.year]
+                    ? currentCurriculum.subjects[subject.year]
+                    : {};
             const semesterSubjects = yearSubjects[subject.semester] || [];
 
-            // Look for an existing subject with the same subjectId
+            // Check for an existing subject with the same subjectId
             const existingSubject = semesterSubjects.find(s => s.subjectId === subject.subjectCode);
             if (existingSubject) {
-                // If the subject exists, keep the grade and remarks from the current data
                 subject.grade = existingSubject.grade || subject.grade;
                 subject.remarks = existingSubject.remarks || subject.remarks;
             }
 
-            // Ensure the subject is added in the appropriate year/semester
+            // Ensure the subject is added in the appropriate year and semester
             if (!curriculumDataToSave.subjects[subject.year]) {
                 curriculumDataToSave.subjects[subject.year] = {};
             }
@@ -598,31 +606,33 @@ async function saveOrUpdateStudentCurriculum(student, subjects, curriculumData) 
                 curriculumDataToSave.subjects[subject.year][subject.semester] = [];
             }
 
-            // Make sure all fields have valid values before saving
             curriculumDataToSave.subjects[subject.year][subject.semester].push({
-                subjectId: subject.subjectCode || 'N/A',
-                subjectName: subject.subjectName || 'N/A',
-                totalUnits: subject.totalUnits || 0,
-                lec: subject.lec || 'N/A',
-                labUnit: subject.lab || 'N/A',
-                prerequisites: subject.prerequisites ? subject.prerequisites.split(', ') : ['None'],
-                grade: subject.grade || 'N/A',  // Default to 'N/A' if undefined
-                remarks: subject.remarks || 'N/A' // Default to 'N/A' if undefined
+                subjectId: subject.subjectCode,
+                subjectName: subject.subjectName,
+                totalUnits: subject.totalUnits,
+                lec: subject.lec,
+                labUnit: subject.lab,
+                prerequisites: Array.isArray(subject.prerequisites) ? subject.prerequisites : ['None'],
+                grade: subject.grade || 'N/A',
+                remarks: subject.remarks || 'N/A',
             });
         });
 
         // Save the updated curriculum data back to the student's document
-        await studentRef.set({
-            academicYearEnd: student.academicYearEnd || 'N/A',
-            academicYearStart: student.academicYearStart || 'N/A',
-            course: student.course || 'N/A',
-            curriculum: student.curriculum || 'N/A',
-            name: student.name || 'N/A',
-            program: student.program || 'N/A',
-            status: student.status || 'N/A',
-            year: student.year || 'N/A',
-            curriculumData: curriculumDataToSave // Save the merged curriculum
-        }, { merge: true });
+        await studentRef.set(
+            {
+                academicYearEnd: student.academicYearEnd || 'N/A',
+                academicYearStart: student.academicYearStart || 'N/A',
+                course: student.course || 'N/A',
+                curriculum: student.curriculum || 'N/A',
+                name: student.name || 'N/A',
+                program: student.program || 'N/A',
+                status: student.status || 'N/A',
+                year: student.year || 'N/A',
+                curriculumData: curriculumDataToSave, // Save the corrected curriculum data
+            },
+            { merge: true }
+        );
 
         console.log('Student curriculum updated successfully');
     } catch (error) {
@@ -631,8 +641,7 @@ async function saveOrUpdateStudentCurriculum(student, subjects, curriculumData) 
 }
 
 
-      
-      // Display Curriculum from Student's Own Data (After Update)
+
    // Display Curriculum from Student's Own Data (After Update)
 function displayCurriculum(subjects) {
     curriculumTableBody.innerHTML = '';
@@ -654,7 +663,7 @@ function displayCurriculum(subjects) {
             <td style="padding: 10px; border: 1px solid #ddd;">${subject.lec}</td>
             <td style="padding: 10px; border: 1px solid #ddd;">${subject.lab}</td>
             <td style="padding: 10px; border: 1px solid #ddd;">${subject.totalUnits}</td>
-            <td style="padding: 10px; border: 1px solid #ddd;">${subject.prerequisites}</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">${subject.prerequisites.join(', ') || 'None'}</td>
             <td style="padding: 10px; border: 1px solid #ddd;">${subject.year}</td>
             <td style="padding: 10px; border: 1px solid #ddd;">${subject.semester}</td>
             <td style="padding: 10px; border: 1px solid #ddd;" id="status-${subject.subjectCode}">${subject.status || 'N/A'}</td>
