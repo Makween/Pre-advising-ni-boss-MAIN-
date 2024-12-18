@@ -242,18 +242,23 @@ td {
 
 <!-- Curated Subjects Table -->
 <table id="curated-subjects-table">
-  <thead>
-      <tr>
-          <th>Code</th>
-          <th>Name</th>
-          <th>Lec</th>
-          <th>Lab</th>
-          <th>Total Units</th>
-          <th>Prerequisites</th>
-      </tr>
-  </thead>
-  <tbody></tbody>
+    <thead>
+        <tr>
+            <th>Subject Code</th>
+            <th>Subject Name</th>
+            <th>Lec Units</th>
+            <th>Lab Units</th>
+            <th>Total Units</th>
+            <th>Prerequisites</th>
+            <th>Grade</th> <!-- New -->
+            <th>Remarks</th> <!-- New -->
+            <th>Retake</th>
+        </tr>
+    </thead>
+    
+    <tbody></tbody>
 </table>
+
 
 
 
@@ -719,7 +724,7 @@ function populateModalTable(subjects) {
     saveButton.addEventListener('click', validateAndProcessGrades);
 }
 
-// Validate and process grades input
+
 // Validate and process grades input
 function validateAndProcessGrades() {
     const gradeInputs = document.querySelectorAll('.grade-input');
@@ -749,11 +754,11 @@ function validateAndProcessGrades() {
     });
 
     if (valid) {
-        // Save the grades to Firestore
-        saveGradesToDatabase(gradesToSave);
+        saveGradesToDatabase(gradesToSave); // Save grades to Firestore
         alert("Grades successfully saved and validated!");
     }
 }
+
 
 async function saveGradesToDatabase(grades) {
     try {
@@ -775,7 +780,7 @@ async function saveGradesToDatabase(grades) {
         const curriculumData = studentData.curriculumData || {};
         const subjectsData = curriculumData.subjects || {};
 
-        // Update grades in the appropriate location in the structure
+        // Update grades in the structure
         grades.forEach(({ subjectCode, grade, status }) => {
             for (const year in subjectsData) {
                 for (const semester in subjectsData[year]) {
@@ -790,17 +795,29 @@ async function saveGradesToDatabase(grades) {
             }
         });
 
-        // Save the updated data back to Firestore
+        // Save updated data to Firestore
         await db.doc(studentDocPath).update({
             'curriculumData.subjects': subjectsData
         });
 
         console.log("Grades saved successfully to Firestore.");
+
+        // Refresh the local subjects array
+        subjects = []; // Clear existing array
+        for (const year in subjectsData) {
+            for (const semester in subjectsData[year]) {
+                subjects = subjects.concat(subjectsData[year][semester]);
+            }
+        }
+
+        console.log("Updated subjects array:", subjects);
+
     } catch (error) {
         console.error("Error saving grades to Firestore:", error);
         alert("Failed to save grades. Please try again.");
     }
 }
+
 
 
 
@@ -832,8 +849,7 @@ function displayAllSubjectsTable(subjects) {
         const row = document.createElement('tr');
 
         // Color-code rows
-        const rowColor = subject.status === 'Passed' ? 'green' : 'red';
-        row.style.color = rowColor;
+        row.style.color = subject.status === 'Passed' ? 'green' : 'red';
 
         // Add a checkbox for retaking subjects
         const retakeCell = document.createElement('td');
@@ -845,7 +861,7 @@ function displayAllSubjectsTable(subjects) {
 
         // Handle prerequisites feedback
         if (subject.status === 'Failed' && !prerequisitesMet(subject)) {
-            checkbox.disabled = true; // Disable checkbox
+            checkbox.disabled = true; // Disable checkbox if prerequisites are not met
             const tooltip = document.createElement('span');
             tooltip.textContent = 'Prerequisite not met';
             tooltip.classList.add('tooltip');
@@ -866,7 +882,11 @@ function displayAllSubjectsTable(subjects) {
 
         allSubjectsTableBody.appendChild(row);
     });
+
+    console.log("All subjects table populated.");
 }
+
+
 function prerequisitesMet(subject) {
     const prerequisites = subject.prerequisites ? subject.prerequisites.split(', ') : [];
     const passedSubjects = new Set(
@@ -876,40 +896,67 @@ function prerequisitesMet(subject) {
     return prerequisites.every(prereq => passedSubjects.has(prereq));
 }
 function displayCuratedSubjectsTable() {
-    const allSubjectsTableBody = document.getElementById('all-subjects-table').querySelector('tbody');
     const curatedSubjectsTableBody = document.getElementById('curated-subjects-table').querySelector('tbody');
     curatedSubjectsTableBody.innerHTML = ''; // Clear previous data
 
-    // Find all selected subjects
-    const selectedSubjects = [];
-    allSubjectsTableBody.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-        if (checkbox.checked) {
-            const subjectCode = checkbox.dataset.subjectCode;
-            const subject = subjects.find(sub => sub.subjectCode === subjectCode);
-            if (subject) {
-                selectedSubjects.push(subject);
-            }
-        }
-    });
-
-    // Populate the curated subjects table
-    selectedSubjects.forEach(subject => {
+    // Populate the table with all subjects (both passed and failed)
+    subjects.forEach(subject => {
         const row = document.createElement('tr');
+
+        // Color-code rows: green for passed, red for failed
+        if (subject.remarks === 'Passed') {
+            row.style.color = 'green';
+        } else if (subject.remarks === 'Failed') {
+            row.style.color = 'red';
+        }
+
+        // Add a checkbox for retaking the subject (only for failed subjects)
+        const retakeCell = document.createElement('td');
+        if (subject.remarks === 'Failed') {
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.dataset.subjectCode = subject.subjectId;
+
+            // Check prerequisites
+            const prerequisitesMet = subject.prerequisites.every(prerequisite =>
+                prerequisite === 'None' || subjects.some(s => s.subjectId === prerequisite && s.remarks === 'Passed')
+            );
+
+            if (!prerequisitesMet) {
+                checkbox.disabled = true; // Disable checkbox if prerequisites are not met
+                const tooltip = document.createElement('span');
+                tooltip.textContent = 'Prerequisite not met';
+                tooltip.classList.add('tooltip');
+                retakeCell.appendChild(tooltip);
+            }
+
+            retakeCell.appendChild(checkbox);
+        } else {
+            retakeCell.textContent = 'N/A'; // No checkbox for passed subjects
+        }
+
+        // Populate the row with subject details
         row.innerHTML = `
-            <td>${subject.subjectCode}</td>
+            <td>${subject.subjectId}</td>
             <td>${subject.subjectName}</td>
             <td>${subject.lec}</td>
-            <td>${subject.lab}</td>
+            <td>${subject.labUnit}</td>
             <td>${subject.totalUnits}</td>
-            <td>${subject.prerequisites || 'None'}</td>
+            <td>${subject.prerequisites.join(', ') || 'None'}</td>
+            <td>${subject.grade || 'N/A'}</td> <!-- Show grade -->
+            <td>${subject.remarks}</td>         <!-- Show remarks -->
         `;
+        row.appendChild(retakeCell);
+
         curatedSubjectsTableBody.appendChild(row);
     });
 
-    if (selectedSubjects.length === 0) {
-        alert('No subjects selected for retaking.');
-    }
+    console.log('Curated subjects table populated with passed and failed subjects.');
 }
+
+
+
+
 
 
 // Triggering the generate subjects action on button click
