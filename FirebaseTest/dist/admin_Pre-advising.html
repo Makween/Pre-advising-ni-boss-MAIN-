@@ -4,97 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel - Pre-Advising</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f4f4f4;
-        }
-        h1 {
-            color: #333;
-        }
-        input, select, button {
-            margin: 10px 0;
-            font-size: 16px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        #pre-advising-search-results {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-            border: 1px solid #ccc;
-            max-height: 150px;
-            overflow-y: auto;
-            display: none;
-            position: absolute;
-            z-index: 1;
-            background: white;
-            width: calc(100% - 2px);
-        }
-        #pre-advising-search-results li {
-            padding: 10px;
-            border-bottom: 1px solid #ddd;
-            cursor: pointer;
-        }
-        #pre-advising-search-results li:hover {
-            background-color: #f1f1f1;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            border: 1px solid #ccc;
-            padding: 10px;
-            text-align: left;
-        }
-        /* Ensure table layout allows full control over column width */
-#pre-advising-curriculum-table {
-  width: 100%;
-  table-layout: fixed;
-}
-
-/* Center and style the year header */
-.year-header {
-  text-align: center;
-  font-weight: bold;
-  background-color: #8362db; /* Optional: gives a background to the year header */
-  padding: 10px;
-  font-size: 1.2em;
-  border: 1px solid #ccc; /* Adds border for clarity */
-  width: 100%; /* Ensure the header spans the full width */
-}
-
-/* Ensure the other table headers (like Semester) are also centered */
-th {
-  text-align: center;
-  padding: 8px;
-  border: 1px solid #ccc;
-}
-
-/* Style the table rows */
-td {
-  padding: 8px;
-  text-align: center;
-  border: 1px solid #535252;
-}
-
-    </style>
     <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-firestore.js"></script>
-</head>
+    
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bowlby+One+SC&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style_pre-ad.css">
+
+  </head>
 <body>
     <h1>Pre-Advising Module</h1>
 
@@ -142,90 +62,14 @@ td {
     </div>
     
     
-    <style>
-    /* Main container */
-#student-info-container {
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    width: 100%;
-    margin-top: 20px;
-}
-
-/* Form container */
-#student-info-form {
-    width: 100%;
-    background-color: #ffffff;
-    padding: 20px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-/* Section headers */
-#student-info-form h3 {
-    margin-bottom: 15px;
-    font-size: 18px;
-    color: #000000;
-    border-bottom: 1px solid #ddd;
-    padding-bottom: 5px;
-}
-
-/* Content sections */
-#student-info-basic, #student-info-curriculum {
-    margin-bottom: 20px;
-}
-
-#student-info-basic div, #student-info-curriculum div {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 10px;
-}
-
-#student-info-basic .label, #student-info-curriculum .label {
-    font-weight: bold;
-    color: #555;
-    width: 40%;
-}
-
-#student-info-basic .value, #student-info-curriculum .value {
-    width: 60%;
-    color: #333;
-    text-align: left;
-}
-
-/* Table for subjects */
-#student-info-subjects table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
-    background-color: #f9f9f9;
-}
-
-#student-info-subjects th, #student-info-subjects td {
-    border: 1px solid #ddd;
-    padding: 8px;
-    text-align: center;
-    font-size: 14px;
-}
-
-#student-info-subjects th {
-    background-color: #f1f1f1;
-    font-weight: bold;
-}
-
-
-    </style>
     
  <!-- Generate Subjects Button -->
- <button id="generate-subjects">Generate Subjects</button>
+ <button id="generate-subjects" class="normal">Generate Subjects</button>
 
-
- 
     <!-- Curriculum Table -->
     <table id="pre-advising-curriculum-table">
         <thead>
-          <tr>
+          <tr id="table-header">
             <th>Subject Code</th>
             <th>Subject Name</th>
             <th>Lec</th>
@@ -241,8 +85,6 @@ td {
         <tbody>
           <!-- Subjects will be dynamically populated here -->
         </tbody>
-        <div id="buttonContainer" style="margin-top: 15px;"></div>
-
       </table>
       
 
@@ -275,12 +117,6 @@ let selectedCurriculumCode = null;
 
 // Populate Academic Year Dropdown (static range)
 function populateAcademicYearDropdown() {
-    const academicYearDropdown = document.getElementById('academic-year'); // Fetch dropdown
-    if (!academicYearDropdown) {
-        console.error('Dropdown element not found.');
-        return;
-    }
-
     const currentYear = new Date().getFullYear();
     const academicYears = [
         `${currentYear - 5}-${currentYear - 4}`,
@@ -292,10 +128,7 @@ function populateAcademicYearDropdown() {
         `${currentYear + 1}-${currentYear + 2}`,
     ];
 
-    // Clear the dropdown
     academicYearDropdown.innerHTML = '';
-
-    // Add options dynamically
     academicYears.forEach(year => {
         const option = document.createElement('option');
         option.value = year;
@@ -303,7 +136,6 @@ function populateAcademicYearDropdown() {
         academicYearDropdown.appendChild(option);
     });
 }
-
 
 // Search Students
 studentSearchInput.addEventListener('input', async () => {
@@ -330,45 +162,44 @@ async function searchStudentsByName(query) {
 }
 
 studentSearchInput.addEventListener('input', async () => {
-  const query = studentSearchInput.value.trim();
-  if (query.length > 0) {
-    const students = await searchStudentsByName(query);
-    displaySearchResults(students);
-  } else {
-    searchResults.innerHTML = '';
-    searchResults.style.display = 'none';
-  }
+    const query = studentSearchInput.value.trim();
+    if (query.length > 0) {
+        const students = await searchStudentsByName(query);
+        displaySearchResults(students);
+    } else {
+        searchResults.innerHTML = '';
+        searchResults.style.display = 'none';
+    }
 });
 
 function displaySearchResults(students) {
-  searchResults.innerHTML = '';
-  if (students.length > 0) {
-    searchResults.style.display = 'block';
-    students.forEach(student => {
-      const li = document.createElement('li');
-      li.textContent = student.name;
-      li.dataset.id = student.id;
-      li.addEventListener('click', async () => {
-        selectedStudentId = student.id;
-        selectedCurriculumCode = student.curriculumCode;
+    searchResults.innerHTML = '';
+    if (students.length > 0) {
+        searchResults.style.display = 'block';
+        students.forEach(student => {
+            const li = document.createElement('li');
+            li.textContent = student.name;
+            li.dataset.id = student.id;
+            li.addEventListener('click', async () => {
+                // Reset the selected student and curriculum values before selecting new student
+                selectedStudentId = student.id;
+                selectedCurriculumCode = student.curriculumCode;
 
-        console.log("Selected Student ID:", selectedStudentId);
-        console.log("Selected Curriculum Code:", selectedCurriculumCode);
+                // Clear previous data in the UI
+                clearStudentData();
 
-        // Clear previous data in the UI
-        clearStudentData();
+                studentSearchInput.value = student.name;
+                searchResults.style.display = 'none';
 
-        studentSearchInput.value = student.name;
+                // Fetch and display the new student's data
+                await fetchAndDisplayStudentInfo(student);
+                // DO NOT call generateSubjects here anymore
+            });
+            searchResults.appendChild(li);
+        });
+    } else {
         searchResults.style.display = 'none';
-
-        // Fetch and display the new student's data
-        await fetchAndDisplayStudentInfo(student);
-      });
-      searchResults.appendChild(li);
-    });
-  } else {
-    searchResults.style.display = 'none';
-  }
+    }
 }
 
 
@@ -409,37 +240,36 @@ async function fetchCurriculum(curriculumCode, studentId) {
     console.log("Subjects Data:", subjectsData);
 
     // Process subjects data and push them into the subjects array
-for (const yearKey in subjectsData) {
-  const yearSubjects = subjectsData[yearKey];
-  for (const semesterKey in yearSubjects) {
-    const semesterSubjects = yearSubjects[semesterKey];
-    if (Array.isArray(semesterSubjects)) {
-      semesterSubjects.forEach(subject => {
-        // Log subject data to check what is being retrieved
-        console.log("Subject:", subject);
+    for (const yearKey in subjectsData) {
+      const yearSubjects = subjectsData[yearKey];
+      for (const semesterKey in yearSubjects) {
+        const semesterSubjects = yearSubjects[semesterKey];
+        if (Array.isArray(semesterSubjects)) {
+          semesterSubjects.forEach(subject => {
+            // Log subject data to check what is being retrieved
+            console.log("Subject:", subject);
 
-        const subjectDetails = {
-          subjectCode: subject.subjectId || 'N/A',  // Use 'subjectId' here
-          subjectName: subject.subjectName || 'N/A', // Use 'subjectName' here
-          lec: subject.lec || 'N/A',
-          lab: subject.labUnit || 'N/A',  // Assuming you want 'labUnit' for lab
-          totalUnits: subject.totalUnits || 'N/A',
-          prerequisites: subject.prerequisites.join(", ") || 'N/A',  // Assuming prerequisites is an array, join them as string
-          year: yearKey,
-          semester: semesterKey,
-          status: subject.remarks || 'N/A',  // Use 'remarks' instead of 'status'
-          grade: subject.grade || 'N/A',
-        };
+            const subjectDetails = {
+              subjectCode: subject.subjectId || 'N/A',  // Use 'subjectId' here
+              subjectName: subject.subjectName || 'N/A', // Use 'subjectName' here
+              lec: subject.lec || 'N/A',
+              lab: subject.labUnit || 'N/A',  // Assuming you want 'labUnit' for lab
+              totalUnits: subject.totalUnits || 'N/A',
+              prerequisites: subject.prerequisites.join(", ") || 'N/A',  // Assuming prerequisites is an array, join them as string
+              year: yearKey,
+              semester: semesterKey,
+              status: subject.status || 'N/A',
+              grade: subject.grade || 'N/A',
+            };
 
-        // Log the subjectDetails object to ensure it's populated correctly
-        console.log("Subject Details:", subjectDetails);
+            // Log the subjectDetails object to ensure it's populated correctly
+            console.log("Subject Details:", subjectDetails);
 
-        subjects.push(subjectDetails);
-      });
+            subjects.push(subjectDetails);
+          });
+        }
+      }
     }
-  }
-}
-
 
     console.log("Filtered Subjects:", subjects);
     return subjects;
@@ -448,6 +278,9 @@ for (const yearKey in subjectsData) {
     return [];
   }
 }
+
+
+
 
 
 // Fetch and display student info on selection
@@ -519,20 +352,10 @@ async function fetchAndDisplayStudentInfo(student) {
                 curriculumInfoContainer.appendChild(createInfoRow(label, value));
             });
         }
-
-        // Check the student's year and redirect if necessary
-        if (year === '1') {
-            // Stay on the current page
-            console.log('1st year student selected, staying on the same page.');
-        } else if (year === '2') {
-            // Redirect to another page for 2nd-year students
-            window.location.href = 'admin_Pre-advising(2nd year).html'; // Change to your second-year page
-        }
     } catch (error) {
         console.error('Error fetching student info:', error);
     }
 }
-
 
 
 // Wait for the DOM to be fully loaded before attaching event listeners
@@ -566,51 +389,61 @@ function clearTableAndReset() {
 
 // Your existing function for populating subjects
 async function generateSubjects() {
+  // Check if student and curriculum are selected
   if (!selectedStudentId || !selectedCurriculumCode) {
     alert("Please select a student and curriculum first.");
+    console.error('Selected Student ID or Curriculum Code is not set correctly');
     return;
   }
 
-  const academicYearDropdown = document.getElementById('academic-year');
-  const selectedAcademicYear = academicYearDropdown.value;
+  // Get selected academic year and semester
+  const selectedAcadYear = academicYearDropdown.value;
+  const selectedSemester = semesterDropdown.value;
+
+  if (!selectedAcadYear || !selectedSemester) {
+    alert("Please select an academic year and semester.");
+    console.error('Selected Academic Year or Semester is not set correctly');
+    return;
+  }
+
+  console.log('Selected Student ID:', selectedStudentId);
+  console.log('Selected Curriculum Code:', selectedCurriculumCode);
+  console.log('Selected Academic Year:', selectedAcadYear);
+  console.log('Selected Semester:', selectedSemester);
 
   try {
     // Fetch student details
     const student = await getSelectedStudentDetails(selectedStudentId);
-    console.log("Retrieved Student Details:", student);
+    if (student) {
+      const { academicYearStart, academicYearEnd } = student;
 
-    console.log("Selected Academic Year:", selectedAcademicYear);
-    console.log("Student Academic Year Start:", student.academicYearStart);
+      // Check if selected academic year matches student's range
+      const [startYear, endYear] = selectedAcadYear.split('-').map(Number);
+      if (startYear < academicYearStart || endYear > academicYearEnd) {
+        alert("Selected academic year does not match the student's range.");
+        console.log('Selected academic year is out of range.');
+        return;  // Exit if the year does not match
+      }
 
-    // Modify the condition to check if the selected academic year contains the student's start year
-    if (!selectedAcademicYear.includes(student.academicYearStart)) {
-      alert("No subjects found for this academic year.");
-      clearTableAndReset();
-      return;
-    }
-
-    // Fetch subjects
-    const subjects = await fetchCurriculum(selectedCurriculumCode, selectedStudentId);
-    console.log("Fetched Curriculum Subjects:", subjects);
-
-    // Filter subjects
-    const firstYearSubjects = subjects.filter(subject => 
-      subject.year === "1" && (subject.semester === "1" || subject.semester === "2")
-    );
-
-    console.log("Filtered Subjects:", firstYearSubjects);
-
-    if (firstYearSubjects.length > 0) {
-      populateSubjectTable(firstYearSubjects);
-      createEnrollSubjectsButton(firstYearSubjects);
+      // Fetch the curriculum and subjects
+      const subjects = await fetchCurriculum(selectedCurriculumCode, selectedStudentId);
+      if (subjects && subjects.length > 0) {
+        populateSubjectTable(subjects); // Populate the table with subjects
+      } else {
+        console.log('No subjects found for this student.');
+        alert("No subjects found for this student.");
+      }
     } else {
-      alert("No subjects available for the selected year and semester.");
-      clearTableAndReset();
+      alert("Failed to fetch student details.");
     }
   } catch (error) {
-    console.error("Error generating subjects:", error);
+    console.error('Error generating subjects:', error);
   }
 }
+
+
+
+
 
 // Assuming you have set selectedStudentId and selectedCurriculumCode from your dropdowns or other inputs
 generateSubjectsButton.addEventListener('click', async () => {
@@ -751,100 +584,40 @@ function getYearSuffix(year) {
 
 
 
-// This function will handle enrolling subjects only for the visible years and semesters
-async function enrollFirstYearSubjects(curriculumCode, studentId) {
-  console.log("Curriculum Code before enroll:", curriculumCode);
-  console.log("Student ID before enroll:", studentId);
-
-  if (!curriculumCode || !studentId) {
-    console.error("Curriculum Code or Student ID is missing!");
-    return;
-  }
-
-  const studentRef = db.collection('Students').doc(curriculumCode).collection('StudentData').doc(studentId);
-
-  try {
-    // Fetch the student document
-    const studentDoc = await studentRef.get();
+// Enroll all subjects
+async function enrollAllSubjects() {
+    const subjectsInfoContainer = document.getElementById('student-info-subjects');
+    const subjects = subjectsInfoContainer.querySelectorAll('table tbody tr');
+    const subjectCodes = [];
     
-    if (!studentDoc.exists) {
-      console.error('Student document does not exist!');
-      return;
-    }
-
-    const studentData = studentDoc.data();
-    const { curriculumData } = studentData; // Access subjects through curriculumData
-
-    let subjectsUpdated = false;
-
-    // Loop through the first year subjects (1st year, 1st and 2nd semesters)
-    if (curriculumData.subjects[1]) {  // Year 1
-      for (const semester in curriculumData.subjects[1]) {  // Semesters 1 and 2
-        const subjectsArray = curriculumData.subjects[1][semester];
-        
-        for (let subject of subjectsArray) {
-          // If the subject's remarks are "N/A", update it to "enrolled"
-          if (subject.remarks === "N/A") {
-            subject.remarks = "Enrolled";  
-            subjectsUpdated = true;
-            console.log(`Subject updated: ${subject.subjectName}`);
-          }
-        }
-      }
-    }
-
-    // If subjects were updated, save them back to Firestore
-    if (subjectsUpdated) {
-      await studentRef.update({ curriculumData });
-      console.log("All 1st year subjects enrolled successfully.");
-    } else {
-      console.log("No subjects to enroll in the 1st year.");
-    }
-  } catch (error) {
-    console.error("Error enrolling 1st year subjects:", error);
-  }
-}
-
-
-
-
-
-
-function createEnrollSubjectsButton(subjects) {
-  const buttonContainer = document.getElementById('buttonContainer'); // Make sure this exists in your HTML
-  buttonContainer.innerHTML = ""; // Clear previous buttons
-
-  const enrollButton = document.createElement('button');
-  enrollButton.textContent = "Enroll Subjects";
-  enrollButton.classList.add('enroll-button'); // Optional for styling
-
-  // Event listener to handle subject enrollment
-  enrollButton.addEventListener('click', async () => {
-    const curriculumCode = selectedCurriculumCode;
-    const studentId = selectedStudentId;
-
-    console.log("Curriculum Code before enroll:", curriculumCode);
-    console.log("Student ID before enroll:", studentId);
+    subjects.forEach(row => {
+        const subjectCode = row.children[0].textContent;
+        subjectCodes.push(subjectCode);
+    });
 
     try {
-      if (!curriculumCode || !studentId) {
-        console.error("Curriculum Code or Student ID is missing!");
-        return;
-      }
+        const studentDocPath = `/Students/${selectedCurriculumCode}/StudentData/${selectedStudentId}`;
+        const studentDoc = await db.doc(studentDocPath).get();
 
-      await enrollFirstYearSubjects(curriculumCode, studentId);
-      alert("All subjects have been enrolled successfully.");
-      subjects.forEach(subject => subject.status = "Enrolled");
-      populateSubjectTable(subjects);
+        if (!studentDoc.exists) {
+            console.error('Student document not found');
+            return;
+        }
+
+        const studentData = studentDoc.data();
+        const updatedSubjects = studentData.subjects.map(subject => {
+            if (subjectCodes.includes(subject.code)) {
+                subject.status = 'enrolled';
+            }
+            return subject;
+        });
+
+        await db.doc(studentDocPath).update({ subjects: updatedSubjects });
+        alert('Subjects enrolled successfully!');
     } catch (error) {
-      console.error("Error enrolling subjects:", error);
-      alert("Failed to enroll subjects. Please try again.");
+        console.error('Error enrolling subjects:', error);
     }
-  });
-
-  buttonContainer.appendChild(enrollButton);
 }
-
 
 // Call function to populate the academic year dropdown initially
 populateAcademicYearDropdown();
