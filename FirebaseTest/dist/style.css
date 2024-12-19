@@ -52,15 +52,27 @@ button.white {
     justify-content: flex-end;
 }
 .button-container button {
+    margin: 10px;
     font-family: Montserrat;
     font-weight: 500;
+}
+#homepage-btn{
+    color: #fff;
+    background: -webkit-linear-gradient(120deg, #274c77, #274c77);
+}
+#homepage-btn:hover {
+    color: #fff;
+    background: -webkit-linear-gradient(120deg, #e4ae1a, #274c77);
+}
+#manage-students-btn {
     color: #111;
     background-color: #e4ae1a;    
 }
-.button-container button:hover {
+#manage-students-btn:hover {
     color: #fff;
-    background-color: #274c77;    
+    background-color: #274c77;
 }
+
 /* Add New Course, Save, Cancel Button */
 #add-course-btn,
 #cancel-course-btn,

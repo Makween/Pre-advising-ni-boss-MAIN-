@@ -47,6 +47,22 @@ button.white {
 
 /* ============================== */
 
+.admin-btn-container {
+    display: flex;
+    justify-content: flex-end; 
+}
+
+#homepage-btn {
+    font-weight: 500;
+    font-family: Montserrat;
+    color: #fff;
+    background: -webkit-linear-gradient(120deg, #274c77, #274c77);
+}
+#homepage-btn:hover {
+    color: #fff;
+    background: -webkit-linear-gradient(120deg, #e4ae1a, #274c77);
+}
+
 input, select {
     margin: 10px 0;
     font-size: 16px;

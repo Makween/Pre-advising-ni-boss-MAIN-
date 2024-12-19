@@ -51,11 +51,16 @@ button.white {
 .admin-btn-container {
     display: flex;
     justify-content: flex-end;
+    margin: 10px;
 }
-#admin-btn {
+#admin-btn,
+#homepage-btn {
     font-family: Montserrat;
     font-weight: 500;
-    margin: 10px 0px 10px 10px;
+    margin: 10px;
+}
+
+#admin-btn {
     color: #111;
     background-color: #e4ae1a;
 }
@@ -63,7 +68,14 @@ button.white {
     color: #fff;
     background-color: #274c77;
 }
-
+#homepage-btn {
+    color: #fff;
+    background: -webkit-linear-gradient(120deg, #274c77, #274c77);
+}
+#homepage-btn:hover {
+    color: #fff;
+    background: -webkit-linear-gradient(120deg, #e4ae1a, #274c77);
+}
 /* Options Button and Add Students Button */
 .option-btn-container {
     display: flex;
