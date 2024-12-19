@@ -334,8 +334,18 @@ async function fetchAndDisplayStudentInfo(student) {
             return;
         }
 
+
         const studentData = studentDoc.data();
         const { academicYearStart, academicYearEnd, curriculumData, year } = studentData;
+        
+              // Check the student's year and redirect if necessary
+              if (year === '1') {
+            // Stay on the current page
+            console.log('1st year student selected, staying on the same page.');
+        } else if (year === '2') {
+            // Redirect to another page for 2nd-year students
+            window.location.href = 'admin_Pre-advising(2nd year).html'; // Change to your second-year page
+        }
 
         basicInfoContainer.appendChild(
             createInfoRow('Academic Year Range', `${academicYearStart} - ${academicYearEnd}`)

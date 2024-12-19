@@ -1,4 +1,4 @@
-/Students/{curriculumCode}/StudentData/{studentId}
+/Students/{curriculumCode}/StudentData/{studentId} (this is the directory) 
   ├── academicYearStart: "2021" (string)
   ├── academicYearEnd: "2022" (string)
   ├── course: "Information Technology Program" (string)
