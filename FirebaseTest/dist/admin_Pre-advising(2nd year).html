@@ -233,13 +233,91 @@ td {
             <th>Prerequisites</th>
             <th>Grade</th>
             <th>Remarks</th>
-            <th>Retake</th>
-            <th>Available In</th> <!-- New Column -->
+            <th>Prerequisite Info</th>
+            <th>Retake Option</th> <!-- New Column -->
         </tr>
     </thead>
     <tbody></tbody>
 </table>
+<!-- Styling For Curated Table -->
+<style>
+/* Add style for sections (year and semester) */
+th[colspan="10"] {
+    background-color: #007bff;
+    color: rgb(1, 1, 1);
+    font-size: 18px;
+    padding: 10px;
+    text-align: center;
+    font-weight: bold;
+}
 
+/* Table styling */
+#curated-subjects-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+#curated-subjects-table th,
+#curated-subjects-table td {
+    padding: 10px;
+    text-align: left;
+    border: 1px solid #ddd;
+}
+
+#curated-subjects-table th {
+    background-color: #f2f2f2;
+}
+
+#curated-subjects-table tbody tr:hover {
+    background-color: #f0f0f0;
+}
+
+/* Color coding based on remarks */
+#curated-subjects-table .passed {
+    background-color: #d4edda; /* Green */
+}
+
+#curated-subjects-table .failed {
+    background-color: #f8d7da; /* Red */
+}
+
+#curated-subjects-table .retake-available {
+    background-color: #fff3cd; /* Yellow */
+}
+
+/* Styling the tooltip */
+.tooltip {
+    color: #dc3545;
+    font-size: 12px;
+}
+
+/* Add button styles if needed */
+button {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+/* Center the year and semester headers */
+.center-header {
+    text-align: center;
+    font-weight: bold;
+    background-color: #f2f2f2; /* Optional: Add a background color */
+    padding: 10px 0; /* Optional: Add padding for better spacing */
+}
+
+
+
+</style>
 
 
 
@@ -829,6 +907,52 @@ closeModalButton.addEventListener('click', () => {
 
 // NUMBER 3 
 
+
+// Get the curriculum data for a given curriculum code
+async function getCurriculumData(curriculumCode) {
+    const curriculumDoc = await db.collection('Curriculum').doc(curriculumCode).get();
+    if (!curriculumDoc.exists) {
+        console.error("Curriculum not found!");
+        return null;
+    }
+    return curriculumDoc.data();
+}
+
+function getYearForSubject(subject, curriculumData) {
+    for (let year in curriculumData.subjects) {
+        for (let semester in curriculumData.subjects[year]) {
+            const semesterSubjects = curriculumData.subjects[year][semester];
+            
+            // Check if subjectId exists within the semesterSubjects
+            const subjectExists = semesterSubjects.some(s => s.subjectId === subject.subjectId);
+            if (subjectExists) {
+                return year;  // Return the year if subject is found
+            }
+        }
+    }
+    console.warn(`Subject ${subject.subjectId} is missing from all years/semesters.`);
+    return null;
+}
+
+function getSemesterForSubject(subject, curriculumData) {
+    for (let year in curriculumData.subjects) {
+        for (let semester in curriculumData.subjects[year]) {
+            const semesterSubjects = curriculumData.subjects[year][semester];
+            
+            // Check if subjectId exists within the semesterSubjects
+            const subjectExists = semesterSubjects.some(s => s.subjectId === subject.subjectId);
+            if (subjectExists) {
+                return semester;  // Return the semester if subject is found
+            }
+        }
+    }
+    console.warn(`Subject ${subject.subjectId} is missing semester.`);
+    return null;
+}
+
+
+
+
 const populateCuratedTableButton = document.getElementById('populate-curated-table-button');
 
 populateCuratedTableButton.addEventListener('click', async () => {
@@ -841,8 +965,233 @@ populateCuratedTableButton.addEventListener('click', async () => {
 });
 
 
+async function displayCuratedSubjectsTable(allCurricula) {
+    const curatedSubjectsTableBody = document.getElementById('curated-subjects-table').querySelector('tbody');
+    curatedSubjectsTableBody.innerHTML = ''; // Clear existing rows
+
+    // Ensure `studentId` and `curriculumCode` are defined
+    const studentId = selectedStudentId; 
+    const curriculumCode = selectedCurriculumCode; 
+
+    if (!studentId || !curriculumCode) {
+        console.error("Missing studentId or curriculumCode. Cannot fetch prerequisites.");
+        return;
+    }
+
+    // Retrieve the curriculum data for the selected student
+    const curriculumData = await getCurriculumData(curriculumCode);
+
+    if (!curriculumData) {
+        console.error("Curriculum data not found for the selected curriculum code.");
+        return;
+    }
+
+    // Group subjects by year and semester
+    const groupedSubjects = {};
+
+    for (const subject of subjects) {
+        const year = getYearForSubject(subject, curriculumData);
+        const semester = getSemesterForSubject(subject, curriculumData);
+
+        if (!year || !semester) {
+            console.warn(`Subject ${subject.subjectId} is missing year or semester.`);
+            continue;  // Skip this subject if year or semester is missing
+        }
+
+        // Initialize the group if it doesn't exist
+        if (!groupedSubjects[year]) {
+            groupedSubjects[year] = {};
+        }
+
+        if (!groupedSubjects[year][semester]) {
+            groupedSubjects[year][semester] = [];
+        }
+
+        // Add subject to the appropriate year and semester group
+        groupedSubjects[year][semester].push(subject);
+    }
+
+    // Now render the grouped subjects
+    for (const year in groupedSubjects) {
+        const yearTitle = `${year === '1' ? '1st' : year === '2' ? '2nd' : '3rd'} Year Subjects`;
+
+        for (const semester in groupedSubjects[year]) {
+            const semesterSubjects = groupedSubjects[year][semester];
+            
+            if (!Array.isArray(semesterSubjects)) {
+                console.error(`Expected an array of subjects for Year ${year} - Semester ${semester}, but got: `, semesterSubjects);
+                continue;  // Skip if semesterSubjects is not an array
+            }
+
+            const semesterTitle = `${semester === '1' ? '1st' : '2nd'} Semester`;
+
+            // Create a section for each year and semester
+            const sectionHeader = document.createElement('tr');
+            sectionHeader.innerHTML = `<th colspan="10" class="center-header">${yearTitle} - ${semesterTitle}</th>`;
+            curatedSubjectsTableBody.appendChild(sectionHeader);
 
 
+            for (const subject of semesterSubjects) {
+    const unmetPrerequisites = await prerequisitesMet(subject, allCurricula, studentId, curriculumCode);
+
+    const row = document.createElement('tr');
+    row.style.color = subject.remarks === 'Passed' ? 'green' : subject.remarks === 'Failed' ? 'red' : 'black';
+
+    // Add retake option for failed subjects
+    const retakeCell = document.createElement('td');
+    if (subject.remarks === 'Failed') {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.dataset.subjectCode = subject.subjectId;
+
+        if (unmetPrerequisites.length > 0) {
+            checkbox.disabled = true; // Disable the checkbox if prerequisites are not met
+            retakeCell.textContent = `Prerequisite not met: ${unmetPrerequisites.map(p => p.prerequisite).join(', ')}`;
+        } else {
+            retakeCell.appendChild(checkbox); // Enable checkbox if all prerequisites are met
+        }
+    } else {
+        retakeCell.textContent = 'N/A'; // No retake option needed for non-failed subjects
+    }
+
+    // Populate the row
+    row.innerHTML = `
+        <td>${subject.subjectId}</td>
+        <td>${subject.subjectName}</td>
+        <td>${subject.lec}</td>
+        <td>${subject.labUnit}</td>
+        <td>${subject.totalUnits}</td>
+        <td>${Array.isArray(subject.prerequisites) ? subject.prerequisites.join(', ') : 'None'}</td>
+        <td>${subject.grade || 'Pending'}</td>
+        <td>${subject.remarks || 'Pending'}</td>
+    `;
+
+    // Handle unmet prerequisites display
+    const crossEnrollmentCell = document.createElement('td');
+    crossEnrollmentCell.textContent = unmetPrerequisites.map(p => `${p.prerequisite} (${p.availableIn})`).join('; ') || 'N/A';
+    row.appendChild(crossEnrollmentCell);
+
+    row.appendChild(retakeCell);
+    curatedSubjectsTableBody.appendChild(row);
+}
+
+
+
+        }
+    }
+
+    console.log('Curated subjects table updated with cross-enrollment information.');
+}
+// prereq
+async function prerequisitesMet(subject, allCurricula, studentId, curriculumCode) {
+    if (!subject || !Array.isArray(subject.prerequisites)) {
+        console.error("Invalid subject passed to prerequisitesMet:", subject);
+        return [];
+    }
+
+    const prerequisites = subject.prerequisites || [];
+    const unmetPrerequisites = [];
+
+    for (const prerequisite of prerequisites) {
+        const cleanPrerequisite = cleanString(prerequisite);
+
+        // Skip "None" prerequisite
+        if (cleanPrerequisite === cleanString('None')) continue;
+
+        let foundInStudentCurriculum = false;
+        let retakeAvailable = false;
+
+        // Check in the student's current curriculum
+        const studentDocPath = `/Students/${curriculumCode}/StudentData/${studentId}`;
+        const studentDocSnapshot = await db.doc(studentDocPath).get();
+
+        if (studentDocSnapshot.exists) {
+            const studentData = studentDocSnapshot.data();
+            const studentCurriculumSubjects = studentData?.curriculumData?.subjects || {};
+
+            for (const year in studentCurriculumSubjects) {
+                for (const semester in studentCurriculumSubjects[year]) {
+                    const semesterSubjects = studentCurriculumSubjects[year][semester];
+                    const prerequisiteSubject = semesterSubjects.find(sub => cleanString(sub.subjectId) === cleanPrerequisite);
+                    if (prerequisiteSubject) {
+                        foundInStudentCurriculum = true;
+                        if (prerequisiteSubject.remarks === 'Failed') {
+                            retakeAvailable = true;
+                        }
+                        break;
+                    }
+                }
+                if (foundInStudentCurriculum) break;
+            }
+        }
+
+        if (!foundInStudentCurriculum) {
+            // Cross-curriculum checking
+            let foundInOtherCurriculum = false;
+
+            for (const [curriculumId, curriculumData] of Object.entries(allCurricula)) {
+              if (curriculumId === curriculumCode) continue;
+
+                const curriculumSubjects = Object.values(curriculumData.subjects || {}).flatMap(semesters =>
+                    Object.values(semesters).flat()
+                );
+
+                if (curriculumSubjects.some(sub => cleanString(sub.subjectId) === cleanPrerequisite)) {
+                    foundInOtherCurriculum = true;
+                    unmetPrerequisites.push({
+                        prerequisite,
+                        availableIn: `Available in: ${curriculumData.curriculumName || curriculumId}`
+                    });
+                    break;
+                }
+            }
+
+
+            if (!foundInOtherCurriculum) {
+                unmetPrerequisites.push({
+                    prerequisite,
+                    availableIn: 'Not Available'
+                });
+            }
+        } else if (retakeAvailable) {
+            unmetPrerequisites.push({
+                prerequisite,
+                availableIn: 'Available to retake'
+            });
+        }
+    }
+
+    return unmetPrerequisites;
+}
+
+
+// Clean string utility function
+function cleanString(str) {
+    return str ? str.replace(/\s+/g, '').toLowerCase() : '';
+}
+
+
+
+async function fetchAllCurricula() {
+    try {
+        const curriculaRef = firebase.firestore().collection('Curriculum');
+        const curriculaSnapshot = await curriculaRef.get();
+        const allCurricula = {};
+
+        curriculaSnapshot.forEach(doc => {
+            allCurricula[doc.id] = doc.data(); // Store curricula by their ID for easy access
+        });
+
+        console.log('All curricula fetched successfully:', allCurricula);
+        return allCurricula;
+    } catch (error) {
+        console.error('Error fetching all curricula:', error);
+        throw error;  // Propagate the error
+    }
+}
+
+
+// not user for now 
 function displayAllSubjectsTable(subjects) {
     const allSubjectsTableBody = document.getElementById('all-subjects-table').querySelector('tbody');
     allSubjectsTableBody.innerHTML = ''; // Clear previous data
@@ -886,219 +1235,6 @@ function displayAllSubjectsTable(subjects) {
     });
 
     console.log("All subjects table populated.");
-}
-
-
-async function displayCuratedSubjectsTable(allCurricula) {
-    const curatedSubjectsTableBody = document.getElementById('curated-subjects-table').querySelector('tbody');
-    curatedSubjectsTableBody.innerHTML = ''; // Clear existing rows
-
-    // Ensure `studentId` and `curriculumCode` are defined
-    const studentId = selectedStudentId; // Replace with actual method to get selected student ID
-    const curriculumCode = selectedCurriculumCode; // Replace with actual method to get curriculum code
-
-    if (!studentId || !curriculumCode) {
-        console.error("Missing studentId or curriculumCode. Cannot fetch prerequisites.");
-        return;
-    }
-
-    console.log("Subjects array being processed:", subjects);
-
-    for (const subject of subjects) {
-        console.log(`Processing subject: ${subject.subjectId}, Prerequisites: ${subject.prerequisites}`);
-        
-        const unmetPrerequisites = await prerequisitesMet(subject, allCurricula, studentId, curriculumCode);
-        const row = document.createElement('tr');
-
-        // Color-code based on remarks
-        row.style.color = subject.remarks === 'Passed' ? 'green' : subject.remarks === 'Failed' ? 'red' : 'black';
-
-        // Add retake option for failed subjects
-        const retakeCell = document.createElement('td');
-
-        if (subject.remarks === 'Failed') {
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.dataset.subjectCode = subject.subjectId;
-
-            const unmetPrerequisites = await prerequisitesMet(subject, allCurricula, studentId, curriculumCode);
-
-            // Disable checkbox if prerequisites are not met or already retaken
-            if (unmetPrerequisites.length > 0) {
-                checkbox.disabled = true;
-                const tooltip = document.createElement('span');
-                tooltip.textContent = `Prerequisite not met: ${unmetPrerequisites.map(p => p.prerequisite).join(', ')}`;
-                tooltip.classList.add('tooltip');
-                retakeCell.appendChild(tooltip);
-            }
-
-            retakeCell.appendChild(checkbox);
-        } else {
-            retakeCell.textContent = 'N/A'; // No retake option for passed subjects
-        }
-
-        // Populate the row
-        row.innerHTML = `
-            <td>${subject.subjectId}</td>
-            <td>${subject.subjectName}</td>
-            <td>${subject.lec}</td>
-            <td>${subject.labUnit}</td>
-            <td>${subject.totalUnits}</td>
-            <td>${Array.isArray(subject.prerequisites) ? subject.prerequisites.join(', ') : 'None'}</td>
-            <td>${subject.grade || 'Pending'}</td>
-            <td>${subject.remarks || 'Pending'}</td>
-        `;
-
-        // Add cross-enrollment information for unmet prerequisites
-        const crossEnrollmentCell = document.createElement('td');
-        if (unmetPrerequisites.length > 0) {
-            crossEnrollmentCell.textContent = unmetPrerequisites
-                .map(p => {
-                    // Check if the prerequisite was failed and needs retake
-                    if (p.availableIn === 'Can be retaken') {
-                        return `${p.prerequisite} (Available in: Retaking)`;
-                    } else {
-                        return `${p.prerequisite} (Available in: ${p.availableIn})`;
-                    }
-                })
-                .join('; ');
-        } else {
-            crossEnrollmentCell.textContent = 'N/A'; // No unmet prerequisites
-        }
-        row.appendChild(crossEnrollmentCell);
-
-        row.appendChild(retakeCell);
-        curatedSubjectsTableBody.appendChild(row);
-    }
-
-    console.log('Curated subjects table updated with cross-enrollment information.');
-}
-
-
-
-async function prerequisitesMet(subject, allCurricula, studentId, curriculumCode) {
-    if (!subject || !Array.isArray(subject.prerequisites)) {
-        console.error("Invalid subject passed to prerequisitesMet:", subject);
-        return [{ prerequisite: "Unknown", availableIn: "Not Available" }];
-    }
-
-    if (!studentId || !curriculumCode) {
-        console.error("Missing studentId or curriculumCode. Cannot fetch student curriculum.");
-        return [{ prerequisite: "Error", availableIn: "Missing student or curriculum information" }];
-    }
-
-    const prerequisites = subject.prerequisites || [];
-    const unmetPrerequisites = [];
-
-    for (const prerequisite of prerequisites) {
-        if (prerequisite === 'None') continue;
-
-        console.log(`Checking prerequisite: ${prerequisite}`);
-
-        let foundInStudentCurriculum = false;
-        let foundInOtherCurricula = false;
-
-        const studentDocPath = `/Students/${curriculumCode}/StudentData/${studentId}`;
-        console.log("Constructed studentDocPath:", studentDocPath);
-
-        const studentDocSnapshot = await firebase.firestore().doc(studentDocPath).get();
-
-        if (studentDocSnapshot.exists) {
-            const studentData = studentDocSnapshot.data();
-            const studentCurriculumSubjects = studentData.subjects || {};
-
-            for (const year in studentCurriculumSubjects) {
-                for (const semester in studentCurriculumSubjects[year]) {
-                    const semesterSubjects = studentCurriculumSubjects[year][semester];
-
-                    const prerequisiteSubject = semesterSubjects.find(sub => sub.subjectId === prerequisite);
-                    if (prerequisiteSubject) {
-                        foundInStudentCurriculum = true;
-
-                        if (prerequisiteSubject.remarks === 'Failed') {
-                            unmetPrerequisites.push({
-                                prerequisite,
-                                availableIn: 'Retaking' // Changed here
-                            });
-                        } else {
-                            continue; // Passed prerequisites are fine
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-
-        // If prerequisite is not found in student's curriculum
-        if (!foundInStudentCurriculum) {
-            for (const [curriculumId, curriculumData] of Object.entries(allCurricula)) {
-                if (curriculumId === curriculumCode) continue;
-
-                const curriculumSubjects = Object.values(curriculumData.subjects || {}).flatMap(semesters =>
-                    Object.values(semesters).flat()
-                );
-
-                const prerequisiteSubject = curriculumSubjects.find(sub => sub.subjectId === prerequisite);
-                if (prerequisiteSubject) {
-                    foundInOtherCurricula = true;
-                    unmetPrerequisites.push({
-                        prerequisite,
-                        availableIn: curriculumId
-                    });
-                    break;
-                }
-            }
-
-            if (!foundInOtherCurricula) {
-                unmetPrerequisites.push({
-                    prerequisite,
-                    availableIn: 'Not Available'
-                });
-            }
-        }
-    }
-
-    console.log('Unmet prerequisites:', unmetPrerequisites);
-    return unmetPrerequisites;
-}
-
-
-async function fetchAllCurricula() {
-    try {
-        const curriculaRef = firebase.firestore().collection('Curriculum'); // Adjust if your collection name is different
-        const curriculaSnapshot = await curriculaRef.get(); // Fetch all documents in the 'Curricula' collection
-        const allCurricula = {};
-
-        // Iterate over the fetched curricula documents
-        curriculaSnapshot.forEach(doc => {
-            allCurricula[doc.id] = doc.data(); // Use the document ID as the key for easier reference
-        });
-
-        console.log('All curricula fetched successfully:', allCurricula);
-        return allCurricula;
-    } catch (error) {
-        console.error('Error fetching all curricula:', error);
-        throw error; // Allow caller to handle the error
-    }
-}
-function findPrerequisiteInOtherCurricula(missingPrerequisites, allCurricula) {
-    const availableCourses = [];
-
-    missingPrerequisites.forEach(prerequisite => {
-        for (const [curriculumId, curriculumData] of Object.entries(allCurricula)) {
-            const curriculumSubjects = Object.values(curriculumData.subjects || {}).flatMap(semesters => 
-                Object.values(semesters).flat()
-            );
-
-            const foundSubject = curriculumSubjects.find(subject => subject.subjectId === prerequisite);
-            if (foundSubject) {
-                availableCourses.push(`Available in: ${curriculumId}`);
-                break;
-            }
-        }
-    });
-
-    return availableCourses.length > 0 ? availableCourses.join(', ') : 'Not Available';
 }
 
 // Triggering the generate subjects action on button click
