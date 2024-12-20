@@ -719,27 +719,33 @@ async function generateSubjects() {
     const selectedAcademicYear = academicYearDropdown.value;
 
     try {
-        // Fetch student details directly from Firestore using selectedStudentId
         const student = await fetchStudentDetails(selectedStudentId, selectedCurriculumCode);
         console.log("Selected Academic Year:", selectedAcademicYear);
-        console.log("Student Academic Year Start:", student.academicYearStart);
+        console.log("Student Year:", student.year); // Assuming `year` field in student document
 
-        if (!selectedAcademicYear.includes(student.academicYearStart)) {
-            alert("No subjects found for this academic year.");
+        // Adjust the fetch logic based on the student's current year
+        let previousYearSubjects = [];
+        if (student.year === "2") {
+            // 2nd-year students should see 1st-year subjects
+            previousYearSubjects = await fetchCurriculumSubjectsForYear(selectedCurriculumCode, 1); // 1st-year subjects
+        } else if (student.year === "3") {
+            // 3rd-year students should see 2nd-year subjects
+            previousYearSubjects = await fetchCurriculumSubjectsForYear(selectedCurriculumCode, 2); // 2nd-year subjects
+        } else if (student.year === "4") {
+            // 4th-year students should see 3rd-year subjects
+            previousYearSubjects = await fetchCurriculumSubjectsForYear(selectedCurriculumCode, 3); // 3rd-year subjects
+        }
+
+        if (previousYearSubjects.length === 0) {
+            alert("No previous year subjects found.");
             clearTableAndReset();
             return;
         }
 
-        // Fetch the curriculum subjects
-        const subjects = await fetchCurriculum(selectedCurriculumCode, selectedStudentId);
-        const firstYearSubjects = subjects.filter(subject =>
-            subject.year === "1" && (subject.semester === "1" || subject.semester === "2")
-        );
+        console.log(previousYearSubjects);
 
-        console.log(firstYearSubjects);
-
-        // Populate the modal table with the fetched subjects
-        populateModalTable(firstYearSubjects);
+        // Populate the modal table with the previous year's subjects
+        populateModalTable(previousYearSubjects);
 
         // Show the modal
         modal.style.display = 'block';
@@ -747,6 +753,39 @@ async function generateSubjects() {
         console.error('Error generating subjects:', error);
     }
 }
+
+// Function to fetch curriculum subjects for a specific year
+async function fetchCurriculumSubjectsForYear(curriculumCode, year) {
+    const subjects = await fetchCurriculum(curriculumCode, selectedStudentId);
+    const yearSubjects = subjects.filter(subject =>
+        subject.year === `${year}` && (subject.semester === "1" || subject.semester === "2")
+    );
+    return yearSubjects;
+}
+
+// Function to validate prerequisites for the current year subjects against the previous year's subjects
+function validatePrerequisiteSubjects(currentYearSubjects, previousYearSubjects) {
+    currentYearSubjects.forEach(subject => {
+        // Ensure prerequisites is an array
+        let prerequisites = subject.prerequisites;
+
+        // If prerequisites is not an array, make it an array (or handle differently if needed)
+        if (!Array.isArray(prerequisites)) {
+            prerequisites = [prerequisites];  // Convert to array if it's not an array
+        }
+
+        prerequisites.forEach(prerequisite => {
+            const prerequisiteSubject = previousYearSubjects.find(prevSubject => prevSubject.subjectId === prerequisite);
+            if (prerequisiteSubject) {
+                const prerequisiteStatus = prerequisiteSubject.status; // Assuming status is part of the subject
+                if (prerequisiteStatus === "Failed") {
+                    alert(`Prerequisite ${prerequisite} for ${subject.subjectName} failed. Please retake the previous year’s subject.`);
+                }
+            }
+        });
+    });
+}
+
 
 // Function to fetch student details from Firestore
 async function fetchStudentDetails(studentId, curriculumCode) {
@@ -758,12 +797,16 @@ async function fetchStudentDetails(studentId, curriculumCode) {
         throw new Error('Student document not found');
     }
 
-    return studentDoc.data(); // Return student data
+    return studentDoc.data();
 }
 
 // Populate modal table with subjects and input fields for grades
 function populateModalTable(subjects) {
     modalTableBody.innerHTML = ''; // Clear existing rows
+
+    // Remove any existing buttons to prevent duplication
+    const existingSaveButton = modal.querySelector('#save-grades-prereq-button');
+    if (existingSaveButton) existingSaveButton.remove();
 
     subjects.forEach(subject => {
         const row = document.createElement('tr');
@@ -784,17 +827,56 @@ function populateModalTable(subjects) {
         modalTableBody.appendChild(row);
     });
 
-    // Add Save Button below the table
-    const saveButton = document.createElement('button');
-    saveButton.textContent = "Save Grades";
-    saveButton.id = "save-grades-button";
-    modal.querySelector('.modal-content').appendChild(saveButton);
+    // Add a single Save Grades (with pre-req validation) button below the table
+    const saveWithPrereqButton = document.createElement('button');
+    saveWithPrereqButton.textContent = "Save Grades (with pre-req validation)";
+    saveWithPrereqButton.id = "save-grades-prereq-button";
 
-    saveButton.addEventListener('click', validateAndProcessGrades);
+    modal.querySelector('.modal-content').appendChild(saveWithPrereqButton);
+
+    // Add event listener to the Save Grades (with pre-req validation) button
+    saveWithPrereqButton.addEventListener('click', validateAndProcessGradesWithPrerequisites);
 }
 
 
-// Validate and process grades input
+
+// Validate prerequisite grades
+function validatePrerequisiteGrades(gradesToSave, subjectsData) {
+    gradesToSave.forEach(({ subjectCode, status }) => {
+        for (const year in subjectsData) {
+            for (const semester in subjectsData[year]) {
+                const semesterSubjects = subjectsData[year][semester];
+
+                semesterSubjects.forEach(subject => {
+                    if (subject.subjectId === subjectCode) {
+                        // Normalize prerequisites to be an array
+                        const prerequisites = Array.isArray(subject.prerequisites) 
+                            ? subject.prerequisites 
+                            : subject.prerequisites === "None" 
+                                ? [] 
+                                : [subject.prerequisites];
+
+                        prerequisites.forEach(prerequisite => {
+                            // Check prerequisite status
+                            semesterSubjects.forEach(prereqSubject => {
+                                if (prereqSubject.subjectId === prerequisite && prereqSubject.remarks === "Failed") {
+                                    // Update subject remarks to indicate prerequisite issue
+                                    subject.remarks = "Retake Available";
+                                    console.warn(
+                                        `Subject ${subject.subjectName} depends on failed prerequisite ${prereqSubject.subjectName}.`
+                                    );
+                                }
+                            });
+                        });
+                    }
+                });
+            }
+        }
+    });
+}
+
+
+// Validate and process grades
 function validateAndProcessGrades() {
     const gradeInputs = document.querySelectorAll('.grade-input');
     let valid = true;
@@ -810,23 +892,100 @@ function validateAndProcessGrades() {
             return;
         }
 
-        // Determine pass/fail
-        const status = (gradeValue >= 1.00 && gradeValue <= 3.00) ? 'Passed' : 'Failed';
+        const status = gradeValue >= 1.00 && gradeValue <= 3.00 ? "Passed" : "Failed";
 
-        // Update the corresponding status cell
         const row = input.closest('tr');
-        row.children[6].textContent = status; // Update "Status" column
-        row.style.color = (status === 'Passed') ? 'green' : 'red'; // Highlight row
+        row.children[6].textContent = status;
+        row.style.color = status === "Passed" ? "green" : "red";
 
-        // Prepare grades for saving
         gradesToSave.push({ subjectCode, grade: gradeValue, status });
     });
 
     if (valid) {
-        saveGradesToDatabase(gradesToSave); // Save grades to Firestore
+        saveGradesToDatabase(gradesToSave);
         alert("Grades successfully saved and validated!");
     }
 }
+
+async function validateAndProcessGradesWithPrerequisites() {
+    const gradeInputs = document.querySelectorAll('.grade-input');
+    let valid = true;
+    const gradesToSave = [];
+    const missedSubjects = [];
+
+    // Loop through each grade input
+    for (const input of gradeInputs) {
+        const gradeValue = parseFloat(input.value);
+        const subjectCode = input.dataset.subject;
+
+        // Find the row of the subject
+        const row = input.closest('tr');
+        const subjectName = row.children[1].textContent; // Get subject name
+
+        // Get the prerequisites of this subject
+        const prerequisites = row.children[5].textContent; // Get prerequisites column value
+        const prerequisitesArray = prerequisites === "None" ? [] : prerequisites.split(',');
+
+        // Validate the grade
+        if (!isValidGrade(gradeValue)) {
+            valid = false;
+            alert(`Invalid grade for ${subjectCode}. Please enter a value between 1.00 and 5.00.`);
+            return;
+        }
+
+        // Check if prerequisites are met
+        let prerequisiteValid = true;
+        prerequisitesArray.forEach(prerequisite => {
+            const prerequisiteRow = Array.from(modalTableBody.rows).find(r => r.cells[0].textContent === prerequisite.trim());
+            if (prerequisiteRow) {
+                const prerequisiteStatus = prerequisiteRow.cells[6].textContent; // Get status column of prerequisite subject
+                if (prerequisiteStatus === "Failed") {
+                    prerequisiteValid = false;
+                }
+            }
+        });
+
+        if (!prerequisiteValid) {
+            // If prerequisite validation fails, add the subject to the missed list
+            missedSubjects.push({
+                subjectCode,
+                grade: "N/A",
+                status: "Missed (Failed Pre-req)"
+            });
+
+            // Update the row with "Missed" status and "N/A" grade
+            row.children[6].textContent = "Missed (Failed Pre-req)";
+            row.style.color = 'red'; // Highlight missed subject row
+            row.children[7].querySelector('.grade-input').value = "N/A"; // Set grade to N/A
+        } else {
+            // If the prerequisite is met, proceed as normal
+            const status = (gradeValue >= 1.00 && gradeValue <= 3.00) ? 'Passed' : 'Failed';
+            row.children[6].textContent = status; // Update the "Status" column
+            row.style.color = (status === 'Passed') ? 'green' : 'red'; // Highlight the row accordingly
+
+            // Prepare data to be saved to the database
+            gradesToSave.push({ subjectCode, grade: gradeValue, status });
+        }
+    }
+
+    // If there are any missed subjects, ask the user for confirmation
+    if (missedSubjects.length > 0) {
+        const userConfirmed = confirm(`Some subjects could not be passed due to failed prerequisites. Do you want to mark them as "Missed" and continue?`);
+        if (userConfirmed) {
+            // Save the grades and remarks for all subjects, including missed ones
+            saveGradesToDatabase([...gradesToSave, ...missedSubjects]); // Save both valid and missed subjects
+            alert("Grades successfully saved, including missed subjects.");
+        } else {
+            alert("Grades not saved due to failed prerequisites.");
+        }
+    } else {
+        // If no missed subjects, save all grades
+        saveGradesToDatabase(gradesToSave);
+        alert("Grades successfully saved!");
+    }
+}
+
+
 
 
 async function saveGradesToDatabase(grades) {
@@ -891,16 +1050,13 @@ async function saveGradesToDatabase(grades) {
 
 
 
-// Helper function to validate grade format
+// Helper: Validate grade
 function isValidGrade(grade) {
-    const gradeRegex = /^[1-5](\.\d{1,2})?$/; // Matches 1.00 to 5.00
-    return gradeRegex.test(grade);
+    return /^[1-5](\.\d{1,2})?$/.test(grade);
 }
 
-
-// Close the modal when clicking the close button
-const closeModalButton = modal.querySelector('.close');
-closeModalButton.addEventListener('click', () => {
+// Close modal
+modal.querySelector('.close').addEventListener('click', () => {
     modal.style.display = 'none';
 });
 
@@ -966,19 +1122,19 @@ populateCuratedTableButton.addEventListener('click', async () => {
 
 
 async function displayCuratedSubjectsTable(allCurricula) {
+    console.log("Starting to display curated subjects table...");
     const curatedSubjectsTableBody = document.getElementById('curated-subjects-table').querySelector('tbody');
     curatedSubjectsTableBody.innerHTML = ''; // Clear existing rows
 
-    // Ensure `studentId` and `curriculumCode` are defined
-    const studentId = selectedStudentId; 
-    const curriculumCode = selectedCurriculumCode; 
+    const studentId = selectedStudentId;
+    const curriculumCode = selectedCurriculumCode;
 
     if (!studentId || !curriculumCode) {
         console.error("Missing studentId or curriculumCode. Cannot fetch prerequisites.");
         return;
     }
 
-    // Retrieve the curriculum data for the selected student
+    console.log("Fetching curriculum data for curriculumCode:", curriculumCode);
     const curriculumData = await getCurriculumData(curriculumCode);
 
     if (!curriculumData) {
@@ -986,32 +1142,24 @@ async function displayCuratedSubjectsTable(allCurricula) {
         return;
     }
 
-    // Group subjects by year and semester
     const groupedSubjects = {};
 
+    console.log("Grouping subjects by year and semester...");
     for (const subject of subjects) {
         const year = getYearForSubject(subject, curriculumData);
         const semester = getSemesterForSubject(subject, curriculumData);
 
         if (!year || !semester) {
             console.warn(`Subject ${subject.subjectId} is missing year or semester.`);
-            continue;  // Skip this subject if year or semester is missing
+            continue;
         }
 
-        // Initialize the group if it doesn't exist
-        if (!groupedSubjects[year]) {
-            groupedSubjects[year] = {};
-        }
-
-        if (!groupedSubjects[year][semester]) {
-            groupedSubjects[year][semester] = [];
-        }
-
-        // Add subject to the appropriate year and semester group
+        if (!groupedSubjects[year]) groupedSubjects[year] = {};
+        if (!groupedSubjects[year][semester]) groupedSubjects[year][semester] = [];
         groupedSubjects[year][semester].push(subject);
     }
 
-    // Now render the grouped subjects
+    console.log("Rendering grouped subjects...");
     for (const year in groupedSubjects) {
         const yearTitle = `${year === '1' ? '1st' : year === '2' ? '2nd' : '3rd'} Year Subjects`;
 
@@ -1020,70 +1168,68 @@ async function displayCuratedSubjectsTable(allCurricula) {
             
             if (!Array.isArray(semesterSubjects)) {
                 console.error(`Expected an array of subjects for Year ${year} - Semester ${semester}, but got: `, semesterSubjects);
-                continue;  // Skip if semesterSubjects is not an array
+                continue;
             }
 
             const semesterTitle = `${semester === '1' ? '1st' : '2nd'} Semester`;
-
-            // Create a section for each year and semester
             const sectionHeader = document.createElement('tr');
             sectionHeader.innerHTML = `<th colspan="10" class="center-header">${yearTitle} - ${semesterTitle}</th>`;
             curatedSubjectsTableBody.appendChild(sectionHeader);
 
-
             for (const subject of semesterSubjects) {
-    const unmetPrerequisites = await prerequisitesMet(subject, allCurricula, studentId, curriculumCode);
+                console.log(`Rendering subject: ${subject.subjectId}`);
+                const unmetPrerequisites = await prerequisitesMet(subject, allCurricula, studentId, curriculumCode);
+                console.log(`Unmet prerequisites for ${subject.subjectId}:`, unmetPrerequisites);
 
-    const row = document.createElement('tr');
-    row.style.color = subject.remarks === 'Passed' ? 'green' : subject.remarks === 'Failed' ? 'red' : 'black';
+                const row = document.createElement('tr');
+                row.style.color = subject.remarks === 'Passed' ? 'green' : subject.remarks === 'Failed' ? 'red' : 'black';
 
-    // Add retake option for failed subjects
-    const retakeCell = document.createElement('td');
-    if (subject.remarks === 'Failed') {
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.dataset.subjectCode = subject.subjectId;
+                const retakeCell = document.createElement('td');
+                if (subject.remarks === 'Failed') {
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.dataset.subjectCode = subject.subjectId;
 
-        if (unmetPrerequisites.length > 0) {
-            checkbox.disabled = true; // Disable the checkbox if prerequisites are not met
-            retakeCell.textContent = `Prerequisite not met: ${unmetPrerequisites.map(p => p.prerequisite).join(', ')}`;
-        } else {
-            retakeCell.appendChild(checkbox); // Enable checkbox if all prerequisites are met
-        }
-    } else {
-        retakeCell.textContent = 'N/A'; // No retake option needed for non-failed subjects
-    }
+                    if (unmetPrerequisites.length > 0) {
+                        checkbox.disabled = true;
+                        retakeCell.textContent = `Prerequisite not met: ${unmetPrerequisites.map(p => p.prerequisite).join(', ')}`;
+                    } else {
+                        retakeCell.appendChild(checkbox);
+                    }
+                } else {
+                    retakeCell.textContent = 'N/A';
+                }
 
-    // Populate the row
-    row.innerHTML = `
-        <td>${subject.subjectId}</td>
-        <td>${subject.subjectName}</td>
-        <td>${subject.lec}</td>
-        <td>${subject.labUnit}</td>
-        <td>${subject.totalUnits}</td>
-        <td>${Array.isArray(subject.prerequisites) ? subject.prerequisites.join(', ') : 'None'}</td>
-        <td>${subject.grade || 'Pending'}</td>
-        <td>${subject.remarks || 'Pending'}</td>
-    `;
+                row.innerHTML = `
+                    <td>${subject.subjectId}</td>
+                    <td>${subject.subjectName}</td>
+                    <td>${subject.lec}</td>
+                    <td>${subject.labUnit}</td>
+                    <td>${subject.totalUnits}</td>
+                    <td>${Array.isArray(subject.prerequisites) ? subject.prerequisites.join(', ') : 'None'}</td>
+                    <td>${subject.grade || 'Pending'}</td>
+                    <td>${subject.remarks || 'Pending'}</td>
+                `;
 
-    // Handle unmet prerequisites display
-    const crossEnrollmentCell = document.createElement('td');
-    crossEnrollmentCell.textContent = unmetPrerequisites.map(p => `${p.prerequisite} (${p.availableIn})`).join('; ') || 'N/A';
-    row.appendChild(crossEnrollmentCell);
+                const crossEnrollmentCell = document.createElement('td');
+                crossEnrollmentCell.textContent = unmetPrerequisites.map(p => `${p.prerequisite} (${p.availableIn})`).join('; ') || 'N/A';
+                row.appendChild(crossEnrollmentCell);
 
-    row.appendChild(retakeCell);
-    curatedSubjectsTableBody.appendChild(row);
-}
-
-
-
+                row.appendChild(retakeCell);
+                curatedSubjectsTableBody.appendChild(row);
+            }
         }
     }
 
     console.log('Curated subjects table updated with cross-enrollment information.');
 }
+
+
+
 // prereq
 async function prerequisitesMet(subject, allCurricula, studentId, curriculumCode) {
+    console.log("Checking prerequisites for subject:", subject?.subjectId);
+
     if (!subject || !Array.isArray(subject.prerequisites)) {
         console.error("Invalid subject passed to prerequisitesMet:", subject);
         return [];
@@ -1092,22 +1238,33 @@ async function prerequisitesMet(subject, allCurricula, studentId, curriculumCode
     const prerequisites = subject.prerequisites || [];
     const unmetPrerequisites = [];
 
+    console.log("Subject prerequisites:", prerequisites);
+
     for (const prerequisite of prerequisites) {
         const cleanPrerequisite = cleanString(prerequisite);
 
-        // Skip "None" prerequisite
-        if (cleanPrerequisite === cleanString('None')) continue;
+        if (cleanPrerequisite === cleanString('None')) {
+            console.log(`Skipping "None" prerequisite for subject: ${subject.subjectId}`);
+            continue;
+        }
+
+        console.log(`Checking prerequisite: ${cleanPrerequisite}`);
 
         let foundInStudentCurriculum = false;
         let retakeAvailable = false;
 
         // Check in the student's current curriculum
         const studentDocPath = `/Students/${curriculumCode}/StudentData/${studentId}`;
+        console.log(`Fetching student data from path: ${studentDocPath}`);
+        
         const studentDocSnapshot = await db.doc(studentDocPath).get();
 
         if (studentDocSnapshot.exists) {
             const studentData = studentDocSnapshot.data();
+            console.log("Student data fetched:", studentData);
+
             const studentCurriculumSubjects = studentData?.curriculumData?.subjects || {};
+            console.log("Student curriculum subjects:", studentCurriculumSubjects);
 
             for (const year in studentCurriculumSubjects) {
                 for (const semester in studentCurriculumSubjects[year]) {
@@ -1118,19 +1275,22 @@ async function prerequisitesMet(subject, allCurricula, studentId, curriculumCode
                         if (prerequisiteSubject.remarks === 'Failed') {
                             retakeAvailable = true;
                         }
+                        console.log(`Found prerequisite in student curriculum: ${prerequisiteSubject}`);
                         break;
                     }
                 }
                 if (foundInStudentCurriculum) break;
             }
+        } else {
+            console.warn("Student document not found.");
         }
 
         if (!foundInStudentCurriculum) {
-            // Cross-curriculum checking
+            console.log("Prerequisite not found in student curriculum. Checking cross-curriculum data...");
             let foundInOtherCurriculum = false;
 
             for (const [curriculumId, curriculumData] of Object.entries(allCurricula)) {
-              if (curriculumId === curriculumCode) continue;
+                if (curriculumId === curriculumCode) continue;
 
                 const curriculumSubjects = Object.values(curriculumData.subjects || {}).flatMap(semesters =>
                     Object.values(semesters).flat()
@@ -1142,25 +1302,28 @@ async function prerequisitesMet(subject, allCurricula, studentId, curriculumCode
                         prerequisite,
                         availableIn: `Available in: ${curriculumData.curriculumName || curriculumId}`
                     });
+                    console.log(`Prerequisite found in other curriculum: ${curriculumData.curriculumName || curriculumId}`);
                     break;
                 }
             }
-
 
             if (!foundInOtherCurriculum) {
                 unmetPrerequisites.push({
                     prerequisite,
                     availableIn: 'Not Available'
                 });
+                console.warn(`Prerequisite ${prerequisite} not found in any curriculum.`);
             }
         } else if (retakeAvailable) {
             unmetPrerequisites.push({
                 prerequisite,
                 availableIn: 'Available to retake'
             });
+            console.log(`Retake available for prerequisite: ${prerequisite}`);
         }
     }
 
+    console.log("Unmet prerequisites for subject:", unmetPrerequisites);
     return unmetPrerequisites;
 }
 
