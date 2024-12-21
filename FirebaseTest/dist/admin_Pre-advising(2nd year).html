@@ -220,33 +220,105 @@ td {
  <!-- Generate Subjects Button -->
  <button id="generate-subjects">Generate Subjects</button>
 
+ <form>
+    <h2>Reference Table</h2>
+    <!-- Instructions Section -->
+    <div class="instructions">
+        <h3>Instructions</h3>
+        <div class="instruction-container">
+            <div class="instruction-item">
+                <h4>Colored Text Representation:</h4>
+                <ul>
+                    <li><span style="color: green; font-weight: bold;">Green</span> indicates that the subject was <strong>passed</strong>.</li>
+                    <li><span style="color: red; font-weight: bold;">Red</span> indicates that the subject was <strong>failed</strong>.</li>
+                    <li><span style="color: yellow; font-weight: bold;">Yellow</span> indicates that the subject will <strong>be missed</strong> due to a failed prerequisite.</li>
+                </ul>
+            </div>
+            <div class="instruction-item">
+                <h4>Buttons:</h4>
+                <ul>
+                    <li><strong>Retake Option:</strong> Check the box if the student wishes to retake the subject. This will update the status of the subject accordingly.</li>
+                    <li><strong>Enroll:</strong> Clicking this button will enroll the selected subjects for the student.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
 
- <!-- Curated Subjects Table -->
- <table id="curated-subjects-table">
-    <thead>
-        <tr>
-            <th>Subject Code</th>
-            <th>Subject Name</th>
-            <th>Lec Units</th>
-            <th>Lab Units</th>
-            <th>Total Units</th>
-            <th>Prerequisites</th>
-            <th>Grade</th>
-            <th>Remarks</th>
-            <th>Prerequisite Info</th>
-            <th>Retake Option</th> <!-- New Column -->
-        </tr>
-    </thead>
-    <tbody></tbody>
-</table>
+    <!-- Curated Subjects Table -->
+    <table id="curated-subjects-table">
+        <thead>
+            <tr>
+                <th>Subject Code</th>
+                <th>Subject Name</th>
+                <th>Lec Units</th>
+                <th>Lab Units</th>
+                <th>Total Units</th>
+                <th>Prerequisites</th>
+                <th>Grade</th>
+                <th>Remarks</th>
+                <th>Prerequisite Info</th>
+                <th>Retake Option</th> <!-- New Column -->
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+   
+</form>
+
 <!-- Styling For Curated Table -->
 <style>
+/* Add background color to the form */
+form {
+    background-color: white; /* White background */
+    padding: 30px; /* Add padding for spacing */
+    border-radius: 8px; /* Optional: Adds rounded corners */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Optional: Adds a subtle shadow */
+}
+
+/* Instructions Section */
+.instructions {
+    margin-bottom: 30px;
+}
+
+.instructions h3 {
+    font-size: 20px; /* Increased font size */
+    color: #007bff;
+    margin-bottom: 20px;
+}
+
+.instruction-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 30px;
+}
+
+.instruction-item {
+    width: 48%; /* Adjust the width of each instruction block */
+    font-size: 16px; /* Increased font size */
+    line-height: 1.6;
+}
+
+.instruction-item h4 {
+    font-size: 18px; /* Increased font size */
+    margin-bottom: 15px;
+    color: #007bff;
+}
+
+.instruction-item ul {
+    padding-left: 20px;
+}
+
+.instruction-item li {
+    margin-bottom: 15px; /* Added margin for spacing */
+}
+
 /* Add style for sections (year and semester) */
 th[colspan="10"] {
     background-color: #007bff;
     color: rgb(1, 1, 1);
     font-size: 18px;
-    padding: 10px;
+    padding: 12px; /* Increased padding for better spacing */
     text-align: center;
     font-weight: bold;
 }
@@ -255,14 +327,15 @@ th[colspan="10"] {
 #curated-subjects-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 20px;
+    margin-top: 30px;
 }
 
 #curated-subjects-table th,
 #curated-subjects-table td {
-    padding: 10px;
+    padding: 15px; /* Increased padding */
     text-align: left;
     border: 1px solid #ddd;
+    font-size: 16px; /* Increased font size */
 }
 
 #curated-subjects-table th {
@@ -296,11 +369,12 @@ th[colspan="10"] {
 button {
     background-color: #007bff;
     color: white;
-    padding: 10px 15px;
+    padding: 12px 20px; /* Increased padding */
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 18px; /* Increased font size */
+    margin-top: 20px;
 }
 
 button:hover {
@@ -312,17 +386,17 @@ button:hover {
     text-align: center;
     font-weight: bold;
     background-color: #f2f2f2; /* Optional: Add a background color */
-    padding: 10px 0; /* Optional: Add padding for better spacing */
+    padding: 12px 0; /* Increased padding for better spacing */
 }
-
-
-
 </style>
 
 
 
-<!-- Button to Populate Curated Table -->
-<button id="populate-curated-table-button">Populate Curated Subjects</button>
+ <!-- Button to Populate Curated Table -->
+ <button id="populate-curated-table-button">Populate Curated Subjects</button>
+
+
+
 
 
 <!-- Table that shows the students their selected subjects  -->
@@ -1104,11 +1178,15 @@ function getSemesterForSubject(subject, curriculumData) {
     }
     console.warn(`Subject ${subject.subjectId} is missing semester.`);
     return null;
+
 }
 
 
 
 
+
+
+//from here
 const populateCuratedTableButton = document.getElementById('populate-curated-table-button');
 
 populateCuratedTableButton.addEventListener('click', async () => {
@@ -1165,7 +1243,7 @@ async function displayCuratedSubjectsTable(allCurricula) {
 
         for (const semester in groupedSubjects[year]) {
             const semesterSubjects = groupedSubjects[year][semester];
-            
+
             if (!Array.isArray(semesterSubjects)) {
                 console.error(`Expected an array of subjects for Year ${year} - Semester ${semester}, but got: `, semesterSubjects);
                 continue;
@@ -1182,47 +1260,95 @@ async function displayCuratedSubjectsTable(allCurricula) {
                 console.log(`Unmet prerequisites for ${subject.subjectId}:`, unmetPrerequisites);
 
                 const row = document.createElement('tr');
-                row.style.color = subject.remarks === 'Passed' ? 'green' : subject.remarks === 'Failed' ? 'red' : 'black';
 
-                const retakeCell = document.createElement('td');
-                if (subject.remarks === 'Failed') {
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.dataset.subjectCode = subject.subjectId;
+                // Set color based on remarks
+                row.style.color = subject.remarks === 'Passed' ? 'green' :
+                    subject.remarks === 'Failed' ? 'red' :
+                        subject.remarks === 'Missed (Failed Pre-req)' ? 'orange' :
+                            subject.remarks === 'Missed (Missed Pre-req)' ? 'gray' : 'black';
 
-                    if (unmetPrerequisites.length > 0) {
-                        checkbox.disabled = true;
-                        retakeCell.textContent = `Prerequisite not met: ${unmetPrerequisites.map(p => p.prerequisite).join(', ')}`;
+                // Format prerequisites info CHECK THIS CODE TO USE THE FUNCTION ALREADY INSIDE THE PREREQMET 
+                const prerequisiteInfo = Array.isArray(subject.prerequisites) ? subject.prerequisites.map(prerequisite => {
+                    const cleanedPrerequisite = cleanString(prerequisite);
+
+                    // Check if the prerequisite was passed
+                    const prerequisiteStatus = subjects.find(s => cleanString(s.subjectId) === cleanedPrerequisite)?.remarks || 'N/A';
+
+                    if (cleanedPrerequisite.toLowerCase() === 'none') {
+                        return 'None (Not Required)';
+                    } else if (prerequisiteStatus === 'Passed') {
+                        return `${cleanedPrerequisite} (Completed)`;
+                    } else if (prerequisiteStatus === 'Failed') {
+                        return `${cleanedPrerequisite} (Retake Available)`;
                     } else {
-                        retakeCell.appendChild(checkbox);
+                        // Check against all curricula
+                        const crossCurriculumSubject = Object.values(allCurricula).flatMap(curriculum =>
+                            Object.values(curriculum.subjects || {}).flatMap(year =>
+                                Object.values(year || {}).flatMap(semester => semester || [])
+                            )
+                        ).find(s => cleanString(s.subjectId) === cleanedPrerequisite);
+
+                        return crossCurriculumSubject ?
+                            `${cleanedPrerequisite} (Not Completed: ${prerequisite})` :
+                            `${cleanedPrerequisite} (Not Found)`;
                     }
-                } else {
-                    retakeCell.textContent = 'N/A';
-                }
+                }).join('; ') : 'N/A';
 
                 row.innerHTML = `
-                    <td>${subject.subjectId}</td>
-                    <td>${subject.subjectName}</td>
-                    <td>${subject.lec}</td>
-                    <td>${subject.labUnit}</td>
-                    <td>${subject.totalUnits}</td>
-                    <td>${Array.isArray(subject.prerequisites) ? subject.prerequisites.join(', ') : 'None'}</td>
-                    <td>${subject.grade || 'Pending'}</td>
-                    <td>${subject.remarks || 'Pending'}</td>
-                `;
+    <td>${subject.subjectId}</td>
+    <td>${subject.subjectName}</td>
+    <td>${subject.lec}</td>
+    <td>${subject.labUnit}</td>
+    <td>${subject.totalUnits}</td>
+    <td>${Array.isArray(subject.prerequisites) ? subject.prerequisites.join(', ') : 'None'}</td>
+    <td>${subject.grade || 'Pending'}</td>
+    <td>${subject.remarks || 'Pending'}</td>
+    <td>${unmetPrerequisites.map(prerequisite => 
+        `${prerequisite.prerequisite} (${prerequisite.availableIn})`
+    ).join('; ')}</td> <!-- Add parentheses around prerequisite names and availableIn -->
+`;
 
-                const crossEnrollmentCell = document.createElement('td');
-                crossEnrollmentCell.textContent = unmetPrerequisites.map(p => `${p.prerequisite} (${p.availableIn})`).join('; ') || 'N/A';
-                row.appendChild(crossEnrollmentCell);
+const retakeCell = document.createElement('td');
+if (subject.remarks === 'Failed') {
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.dataset.subjectCode = subject.subjectId;
 
-                row.appendChild(retakeCell);
-                curatedSubjectsTableBody.appendChild(row);
+    if (unmetPrerequisites.length > 0) {
+        const unmetRetakeAvailable = unmetPrerequisites.some(p => p.retakeAvailable);
+        if (unmetRetakeAvailable) {
+            checkbox.disabled = false;
+            retakeCell.textContent = `Prerequisite met, but failed. Retake available.`;
+            const label = document.createElement('label');
+            label.textContent = ' Check this box if you want to retake this subject.';
+            retakeCell.appendChild(checkbox);
+            retakeCell.appendChild(label);
+        } else {
+            checkbox.disabled = true;
+            retakeCell.textContent = `Prerequisite not met: ${unmetPrerequisites.map(p => p.prerequisite).join(', ')}`;
+        }
+    } else {
+        checkbox.disabled = false;
+        const label = document.createElement('label');
+        label.textContent = ' Check this box if you want to retake this subject.';
+        retakeCell.appendChild(checkbox);
+        retakeCell.appendChild(label);
+    }
+} else {
+    retakeCell.textContent = 'N/A';
+}
+
+row.appendChild(retakeCell);
+curatedSubjectsTableBody.appendChild(row);
+
+
             }
         }
     }
 
     console.log('Curated subjects table updated with cross-enrollment information.');
 }
+
 
 
 
@@ -1250,6 +1376,7 @@ async function prerequisitesMet(subject, allCurricula, studentId, curriculumCode
 
         console.log(`Checking prerequisite: ${cleanPrerequisite}`);
 
+        let prerequisiteStatus = 'Not Available';
         let foundInStudentCurriculum = false;
         let retakeAvailable = false;
 
@@ -1264,18 +1391,29 @@ async function prerequisitesMet(subject, allCurricula, studentId, curriculumCode
             console.log("Student data fetched:", studentData);
 
             const studentCurriculumSubjects = studentData?.curriculumData?.subjects || {};
-            console.log("Student curriculum subjects:", studentCurriculumSubjects);
 
             for (const year in studentCurriculumSubjects) {
                 for (const semester in studentCurriculumSubjects[year]) {
-                    const semesterSubjects = studentCurriculumSubjects[year][semester];
+                    const semesterSubjects = studentCurriculumSubjects[year][semester] || [];
                     const prerequisiteSubject = semesterSubjects.find(sub => cleanString(sub.subjectId) === cleanPrerequisite);
                     if (prerequisiteSubject) {
                         foundInStudentCurriculum = true;
-                        if (prerequisiteSubject.remarks === 'Failed') {
-                            retakeAvailable = true;
+
+                        const remark = prerequisiteSubject.remarks || 'N/A';
+                        const prerequisiteInfo = prerequisiteSubject.subjectId || 'Unknown Subject';
+
+                        if (remark === 'Failed') {
+                            // Mark as failed and retake available only if prerequisite was passed and then failed
+                            prerequisiteStatus = `Failed Pre-req: ${prerequisiteInfo}`;
+                            retakeAvailable = true;  // Retake available for failed subject
+                        } else if (remark === 'Missed (Failed Pre-req)') {
+                            prerequisiteStatus = `Missed Pre-req: ${prerequisiteInfo}`;
+                        } else if (remark === 'Passed') {
+                            prerequisiteStatus = `${prerequisiteInfo} (Passed and Completed)`;
+                            retakeAvailable = true;  // Enable retake if prerequisite passed
+                        } else {
+                            prerequisiteStatus = `Not Completed: ${prerequisiteInfo}`;
                         }
-                        console.log(`Found prerequisite in student curriculum: ${prerequisiteSubject}`);
                         break;
                     }
                 }
@@ -1298,34 +1436,31 @@ async function prerequisitesMet(subject, allCurricula, studentId, curriculumCode
 
                 if (curriculumSubjects.some(sub => cleanString(sub.subjectId) === cleanPrerequisite)) {
                     foundInOtherCurriculum = true;
-                    unmetPrerequisites.push({
-                        prerequisite,
-                        availableIn: `Available in: ${curriculumData.curriculumName || curriculumId}`
-                    });
+                    prerequisiteStatus = `Available in: ${curriculumData.curriculumName || curriculumId}`;
                     console.log(`Prerequisite found in other curriculum: ${curriculumData.curriculumName || curriculumId}`);
                     break;
                 }
             }
 
             if (!foundInOtherCurriculum) {
-                unmetPrerequisites.push({
-                    prerequisite,
-                    availableIn: 'Not Available'
-                });
+                prerequisiteStatus = 'Not Available';
                 console.warn(`Prerequisite ${prerequisite} not found in any curriculum.`);
             }
-        } else if (retakeAvailable) {
+        }
+
+        if (prerequisiteStatus !== 'Not Available') {
             unmetPrerequisites.push({
                 prerequisite,
-                availableIn: 'Available to retake'
+                availableIn: prerequisiteStatus,
+                retakeAvailable
             });
-            console.log(`Retake available for prerequisite: ${prerequisite}`);
         }
     }
 
     console.log("Unmet prerequisites for subject:", unmetPrerequisites);
     return unmetPrerequisites;
 }
+
 
 
 // Clean string utility function
@@ -1360,10 +1495,20 @@ function displayAllSubjectsTable(subjects) {
     allSubjectsTableBody.innerHTML = ''; // Clear previous data
 
     subjects.forEach(subject => {
-        const row = document.createElement('tr');
+    const row = document.createElement('tr');
 
-        // Color-code rows
-        row.style.color = subject.status === 'Passed' ? 'green' : 'red';
+    // Color-code rows based on the status
+    if (subject.remarks === 'Passed') {
+        row.style.color = 'green'; // Passed: Green
+    } else if (subject.remarks === 'Failed') {
+        row.style.color = 'red'; // Failed: Red
+    } else if (subject.remarks === 'Missed (Failed Pre-req)') {
+        row.style.color = 'orange'; // Missed (Failed Pre-req): Orange
+    } else if (subject.remarks === 'Missed (Missed Pre-req)') {
+        row.style.color = 'gray'; // Missed (Missed Pre-req): Gray
+    } else {
+        row.style.color = 'black'; // Default color
+    }
 
         // Add a checkbox for retaking subjects
         const retakeCell = document.createElement('td');
