@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-auth.js";
-import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
+import { getAuth, createUserWithEmailAndPassword, sendEmailVerification } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, query, where, getDocs, collection } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -56,6 +56,15 @@ submit.addEventListener("click", async function (event) {
     return;
   }
 
+  // Check if the School ID already exists in the Firestore database
+  const schoolIDQuery = query(collection(db, "users"), where("schoolID", "==", schoolID));
+  const querySnapshot = await getDocs(schoolIDQuery);
+
+  if (!querySnapshot.empty) {
+    alert("This School ID is already registered.");
+    return;
+  }
+
   if (password.length < 6) {
     alert("Password must be at least 6 characters.");
     return;
@@ -66,6 +75,8 @@ submit.addEventListener("click", async function (event) {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
+    console.log("User created:", user);  // Check if the user is created successfully
+
     // Store additional user data in Firestore
     await setDoc(doc(db, "users", user.uid), {
       firstname,
@@ -74,9 +85,14 @@ submit.addEventListener("click", async function (event) {
       email,
     });
 
+    // Send email verification link
+    await sendEmailVerification(user);
+    console.log("Verification email sent to:", email);  // Check if email verification was triggered
+
     // Success message or redirection
-    alert("Account successfully created!");
-    window.location.href = "SignIn.html";
+    alert("Account successfully created! Please check your email to verify your account.");
+    window.location.href = "SignIn.html"; // Redirect to sign-in page or another page
+
   } catch (error) {
     console.error("Error:", error.code, error.message);
 

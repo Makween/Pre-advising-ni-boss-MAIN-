@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign In</title>
     <style>
+        /* Basic Styles for Form */
         body {
             font-family: Arial, sans-serif;
             display: flex;
@@ -12,7 +13,7 @@
             align-items: center;
             height: 100vh;
             margin: 0;
-            background-color: #f0f0f0;
+            background: linear-gradient(to right, #f0f0f0, #e6e6e6);
         }
 
         form {
@@ -22,6 +23,7 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             width: 100%;
             max-width: 400px;
+            text-align: center;
         }
 
         input[type="email"],
@@ -30,7 +32,7 @@
             padding: 10px;
             margin: 10px 0;
             border: 1px solid #ccc;
-            border-radius: 5px;
+            border-radius: 50px;
             font-size: 16px;
             box-sizing: border-box;
         }
@@ -41,67 +43,62 @@
             background-color: #007BFF;
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 50px;
             font-size: 16px;
             cursor: pointer;
-            transition: background-color 0.3s;
         }
 
-        input[type="submit"]:hover {
-            background-color: #0056b3;
-        }
-
-        input:focus {
-            outline: none;
-            border-color: #007BFF;
-            box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
-        }
-
-        .form-title {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            text-align: center;
-            color: #333;
-        }
-
-        .signup-link {
-            text-align: center;
-            margin-top: 15px;
+        .forgot-password-link {
+            margin-top: 10px;
             font-size: 14px;
             color: #555;
         }
 
-        .signup-link a {
+        .forgot-password-link a {
             color: #007BFF;
             text-decoration: none;
-            font-weight: bold;
         }
 
-        .signup-link a:hover {
-            text-decoration: underline;
-        }
-
-        .error-message {
-            color: red;
-            font-size: 14px;
-            text-align: center;
-            margin-top: 10px;
-            display: none; /* Hidden by default */
+        .popup-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
     </style>
 </head>
 <body>
-    <form>
-        <div class="form-title">Login to your Account</div>
-        <input type="email" id="email" placeholder="Enter your Email" required />
-        <input type="password" id="password" placeholder="Enter your Password" required />
+    <form id="signinForm">
+        <div class="form-title">Sign In</div>
+        
+        <input type="email" id="email" placeholder="Enter Email" required />
+        <input type="password" id="password" placeholder="Enter Password" required />
+        
         <input type="submit" id="submit" value="Sign In">
-        <div class="signup-link">
+        
+        <div class="signin-link">
             Don't have an account? <a href="SignUp.html">Sign Up</a>
         </div>
-        <div id="errorMessage" class="error-message">Invalid email or password</div>
+
+        <!-- Forgot password link -->
+        <div class="forgot-password-link">
+            <a href="javascript:void(0);" id="forgotPasswordLink">Forgot Password?</a>
+        </div>
     </form>
-    <script type="module" src="SignIn.js" defer></script>
+
+    <!-- Forgot password popup -->
+    <div id="forgotPasswordPopup" style="display:none;">
+        <div class="popup-content">
+            <div>Please enter your email address to receive a password reset link.</div>
+            <input type="email" id="resetEmail" placeholder="Enter your email" required />
+            <button id="resetPasswordSubmit">Send Reset Link</button>
+            <button id="closePopup">Close</button>
+        </div>
+    </div>
+
+    <script type="module" src="SignIn.js"></script>
 </body>
 </html>
